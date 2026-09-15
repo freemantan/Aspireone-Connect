@@ -11,3 +11,5 @@
 .inline-field{display:block}.inline-field>small{display:block;font-size:12px;max-width:230px;white-space:normal}.inline-field input[aria-invalid=true]{outline:1px solid #bd6868;background:#fff7f7}
 .invitation-banner{display:flex;gap:20px;align-items:center;justify-content:space-between;margin-bottom:15px}
 .date-help{font-size:14px;margin:8px 0 14px}
+.login-card a.primary{background:#15803d;color:#fff;border-color:#15803d}
+.login-card a.primary:hover{background:#166534;border-color:#166534}
