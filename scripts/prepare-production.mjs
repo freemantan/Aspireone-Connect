@@ -1,0 +1,13 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+const input=process.argv[2];
+if(!input)throw new Error('Supply a deployment JSON with domain, databaseId and bucketName. See deployment/inputs.example.json.');
+const v=JSON.parse(readFileSync(input,'utf8'));
+if(!v.domain||!/^[a-z0-9.-]+$/i.test(v.domain)||!v.databaseId||!v.bucketName)throw new Error('Real domain, databaseId and private bucketName are required.');
+const config=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
+config.name='aspireone-connect';config.workers_dev=false;config.routes=[{pattern:v.domain,custom_domain:true}];
+config.d1_databases=[{binding:'DB',database_name:'aspireone-connect-production',database_id:v.databaseId,migrations_dir:'../../drizzle'}];
+config.r2_buckets=[{binding:'BUCKET',bucket_name:v.bucketName}];
+config.vars={APP_ORIGIN:'https://'+v.domain,DEMO_MODE:'false',UPLOAD_LIMIT_MB:'25',ADMIN_EMAILS:v.adminEmails||'',INVITE_FROM:v.inviteFrom||''};
+config.observability={enabled:true};
+writeFileSync('dist/server/wrangler.production.json',JSON.stringify(config,null,2)+'\n');
+console.log('Prepared dist/server/wrangler.production.json. No deployment performed. Configure secrets before publishing.');

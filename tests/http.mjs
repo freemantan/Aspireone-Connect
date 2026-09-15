@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+const origin=process.env.TEST_ORIGIN||'http://localhost:5173';
+async function login(user){const r=await fetch(origin+'/api/demo',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({user})});assert.equal(r.status,200,await r.clone().text());return r.headers.get('set-cookie').split(';')[0];}
+async function req(cookie,path,body,expected=200){const r=await fetch(origin+'/api/'+path,{method:body===undefined?'GET':'POST',headers:{Cookie:cookie,Origin:origin,...(body!==undefined?{'Content-Type':'application/json'}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})});const value=await r.json();assert.equal(r.status,expected,JSON.stringify(value));return value;}
+const admin=await login('demo-admin'),viewer=await login('demo-view'),editor=await login('demo-edit'),manager=await login('demo-manage');
+let state=await req(admin,'state');const b=state.boards.find(b=>b.name==='Marketing').id;
+assert.equal((await req(viewer,'state')).boards.some(b=>b.name==='Directors'),false);
+await req(manager,'action',{op:'board.create',name:'Should not exist'},403);
+const group=await req(viewer,'action',{op:'group.create',board:b,name:'Acceptance '+Date.now()});
+const t=await req(editor,'action',{op:'task.create',board:b,group:group.id,title:'HTTP acceptance task'});
+const assigned=await req(editor,'action',{op:'task.update',board:b,id:t.id,version:t.version,changes:{assignee:'demo-view',team:['demo-edit','demo-manage']}});
+await req(viewer,'action',{op:'task.update',board:b,id:t.id,version:assigned.version,changes:{title:'Forbidden'}},403);
+const updated=await req(viewer,'action',{op:'task.update',board:b,id:t.id,version:assigned.version,changes:{remark:'Persisted across sessions',status:'wip'}});
+await req(editor,'action',{op:'task.update',board:b,id:t.id,version:assigned.version,changes:{remark:'Stale overwrite'}},409);
+assert.equal((await req(manager,'state')).tasks.find(x=>x.id===t.id).remark,'Persisted across sessions');
+const topic=await req(viewer,'action',{op:'topic.create',board:b,title:'HTTP board conversation'});
+const message=await req(viewer,'action',{op:'chat.post',board:b,subject:t.id,body:'Review **this** update',mentions:['demo-edit']});
+const form=new FormData();form.append('board',b);form.append('subject',t.id);form.append('file',new File(['Private acceptance content'],'acceptance.txt',{type:'text/plain'}));
+const ur=await fetch(origin+'/api/upload',{method:'POST',headers:{Cookie:viewer,Origin:origin},body:form});assert.equal(ur.status,200,await ur.clone().text());const file=await ur.json();
+await req(viewer,'action',{op:'chat.post',board:b,subject:t.id,body:'Attached for review',files:[file.id],reply:message.id,mentions:['demo-edit']});
+let download=await fetch(origin+'/api/files/'+file.id,{headers:{Cookie:editor}});assert.equal(download.status,200);assert.equal(await download.text(),'Private acceptance content');
+const invalid=new FormData();invalid.append('board',b);invalid.append('subject',t.id);invalid.append('file',new File(['bad'],'bad.exe',{type:'application/octet-stream'}));const bad=await fetch(origin+'/api/upload',{method:'POST',headers:{Cookie:viewer,Origin:origin},body:invalid});assert.equal(bad.status,400);
+await req(viewer,'action',{op:'chat.read',board:b,subject:t.id});state=await req(viewer,'state');assert.equal(state.messages.filter(m=>m.subject===t.id&&!m.removed).length,2);assert.equal(state.reads.find(r=>r.subject===t.id).last,state.messages.filter(m=>m.subject===t.id).at(-1).id);
+await req(manager,'action',{op:'task.update',board:b,id:t.id,version:updated.version,changes:{archived:true}});assert.ok((await req(admin,'state')).tasks.find(x=>x.id===t.id).archived);
+let latest=(await req(admin,'state')).tasks.find(x=>x.id===t.id);await req(manager,'action',{op:'task.update',board:b,id:t.id,version:latest.version,changes:{archived:false}});
+await req(manager,'action',{op:'member',board:b,user:'demo-view',role:null});const revoked=await req(viewer,'state');for(const k of ['tasks','groups','messages','files','notifications'])assert.ok(!revoked[k].some(x=>x.board===b));download=await fetch(origin+'/api/files/'+file.id,{headers:{Cookie:viewer}});assert.equal(download.status,403);
+await req(manager,'action',{op:'invite',board:b,email:'viewer@example.test',role:'View'});const pending=(await req(viewer,'state')).pendingInvitations;await req(viewer,'action',{op:'invite.accept',token:pending.at(-1).token});
+const newViewer=await login('demo-view');assert.equal((await req(newViewer,'state')).tasks.find(x=>x.id===t.id).remark,'Persisted across sessions');
+const csrf=await fetch(origin+'/api/action',{method:'POST',headers:{Cookie:viewer,Origin:'https://attacker.invalid','Content-Type':'application/json'},body:JSON.stringify({op:'profile',abbreviation:'X'})});assert.equal(csrf.status,403);
+latest=(await req(admin,'state')).tasks.find(x=>x.id===t.id);
+const race=await Promise.all(['Concurrent A','Concurrent B'].map(remark=>fetch(origin+'/api/action',{method:'POST',headers:{Cookie:editor,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({op:'task.update',board:b,id:t.id,version:latest.version,changes:{remark}})}).then(r=>r.status)));
+assert.deepEqual(race.sort(),[200,409]);
+const second=await req(editor,'action',{op:'task.create',board:b,group:group.id,title:'Independent concurrent task'});
+latest=(await req(admin,'state')).tasks.find(x=>x.id===t.id);
+await Promise.all([req(editor,'action',{op:'task.update',board:b,id:t.id,version:latest.version,changes:{remark:'Independent A'}}),req(editor,'action',{op:'task.update',board:b,id:second.id,version:second.version,changes:{remark:'Independent B'}})]);
+state=await req(admin,'state');assert.equal(state.tasks.find(x=>x.id===t.id).remark,'Independent A');assert.equal(state.tasks.find(x=>x.id===second.id).remark,'Independent B');
+if(process.env.TEST_CRON_SECRET){const day=new Date(state.today+'T00:00:00Z').getUTCDay();await req(editor,'action',{op:'recurrence',board:b,id:t.id,frequency:'weekly',start:state.today,day,offset:0});
+const tick=async()=>{const r=await fetch(origin+'/api/scheduler',{method:'POST',headers:{Authorization:'Bearer '+process.env.TEST_CRON_SECRET}});assert.equal(r.status,200);return r.json();};assert.equal((await tick()).generated,1);assert.equal((await tick()).generated,0);}
+latest=(await req(admin,'state')).tasks.find(x=>x.id===t.id);await req(admin,'action',{op:'group.update',board:b,id:group.id,version:group.version,archived:true});
+console.log('PASS: four sessions, persisted mutations, permission denials, stale-write rejection, chats, private upload/download, invalid file, read position, archive/restore, revocation, relogin, simultaneous same-record and independent-record writes, scheduler retries (when configured), and CSRF.');

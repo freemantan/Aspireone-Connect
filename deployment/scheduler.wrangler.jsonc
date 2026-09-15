@@ -1,0 +1,9 @@
+{
+ "name":"aspireone-connect-scheduler",
+ "main":"scheduler.ts",
+ "compatibility_date":"2026-05-15",
+ "workers_dev":false,
+ "triggers":{"crons":["*/5 * * * *"]},
+ "vars":{"APP_ORIGIN":"https://YOUR_PRODUCTION_DOMAIN"},
+ "observability":{"enabled":true}
+}
