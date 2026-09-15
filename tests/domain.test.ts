@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initial,mutate,role,view,runRecurrences,completed,overdue,archived,today,addDays,State} from '../lib/model';
 import {demo} from '../lib/demo';
+import {updateBoardNames} from '../lib/workspace-updates';
+import {columnPreferences,standardColumns} from '../lib/column-preferences';
 function setup(){const s=initial();demo(s);const admin=s.users[0],viewer=s.users[1],editor=s.users[2],manager=s.users[3],t=s.tasks[0];return {s,admin,viewer,editor,manager,t,b:t.board,g:t.group};}
 function update(s:any,u:any,t:any,changes:any,extra={}){return mutate(s,u,{op:'task.update',board:t.board,id:t.id,version:t.version,changes,...extra});}
 const denied=(fn:()=>any)=>assert.throws(fn,/Access denied/);
@@ -51,7 +53,7 @@ test('administrators edit short names and mobile numbers across invitations and 
  mutate(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:'  Short Name  ',mobile:'+65 1234'});
  assert.equal(viewer.name,'Short Name');assert.equal(i.name,'Short Name');assert.equal(viewer.mobile,'+65 1234');
  mutate(s,admin,{op:'person.edit',kind:'invites',id:i.id,name:'Short',mobile:''});assert.equal(viewer.mobile,'');
- assert.throws(()=>mutate(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:' ',mobile:''}),/Short Name/);
+ assert.throws(()=>mutate(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:' ',mobile:''}),/Person Name/);
 });
 test('invitation removal invalidates pending links without removing accepted membership',()=>{
  const {s,admin,manager,viewer,b}=setup();const i=mutate(s,admin,{op:'company.invite',name:'Pending',email:'remove@example.test'});
@@ -68,4 +70,26 @@ test('deleting a portal user revokes access while preserving history and blocks 
  assert.equal(viewer.deleted,true);assert.equal(role(s,viewer,b),0);assert.equal(s.tasks.length,tasks);assert.equal(t.assignee,viewer.id);
  assert.ok(!s.members.some(m=>m.user===viewer.id));assert.ok(!s.invites.some(i=>i.email===viewer.email));assert.ok(!view(s,admin).directory.some((p:any)=>p.email===viewer.email));
  assert.throws(()=>mutate(s,admin,{op:'user',id:viewer.id,active:true}),/deleted/);
+});
+test('existing board names migrate once without replacing custom names or records',()=>{
+ const {s}=setup();s.boards[2].name='CRM (Customer Relationship Manager)';s.boards[3].name='Ops';s.boards[5].name='Technology Department';const tasks=s.tasks.length;
+ assert.equal(updateBoardNames(s),true);assert.equal(s.boards[2].name,'Customer Relationship');assert.equal(s.boards[3].name,'Operations');assert.equal(s.boards[5].name,'Technology');assert.equal(s.tasks.length,tasks);assert.equal(updateBoardNames(s),false);
+ s.boards[3].name='Custom Operations';assert.equal(updateBoardNames(s),false);
+});
+test('new shared columns persist and default unchecked while the five standard columns are checked',()=>{
+ const {s,manager,viewer,b}=setup();const board=s.boards.find(x=>x.id===b)!;const column={id:'shared-col',name:'Tracking',type:'text',archived:false};
+ mutate(s,manager,{op:'settings',board:b,version:board.version,columns:[...board.columns,column]});assert.ok(board.hidden.includes(column.id));
+ assert.ok(view(s,viewer).boards.find((x:any)=>x.id===b).columns.some((c:any)=>c.id===column.id));
+ assert.equal(standardColumns.length,5);for(const id of standardColumns)assert.ok(!columnPreferences(board,null).includes(id));
+ assert.ok(columnPreferences(board,{hidden:[],known:[]}).includes(column.id));assert.ok(!columnPreferences(board,{hidden:[],known:[column.id]}).includes(column.id));
+ mutate(s,manager,{op:'settings',board:b,version:board.version,hidden:[]});assert.ok(!board.hidden.includes(column.id));
+});
+test('a task supports many sibling subtasks without a fixed count limit',()=>{
+ const {s,editor,t,b}=setup();for(let n=0;n<200;n++)mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Subtask '+n});
+ assert.ok(s.tasks.filter(x=>x.parent===t.id).length>=200);
+});
+test('person name and abbreviation remain independent and transfer on acceptance',()=>{
+ const {s,admin}=setup();const i=mutate(s,admin,{op:'company.invite',email:'abbr@example.test',name:'Full Person Name',abbreviation:'FPN',mobile:''});
+ const u={id:'abbr-user',email:i.email,name:'Google Name',abbreviation:'GN',active:true,onboarding:true};s.users.push(u);mutate(s,u,{op:'invite.accept',token:i.token});
+ assert.equal(u.name,'Full Person Name');assert.equal(u.abbreviation,'FPN');mutate(s,admin,{op:'person.edit',kind:'users',id:u.id,name:'New Full Name',abbreviation:'NF',mobile:''});assert.equal(u.name,'New Full Name');assert.equal(u.abbreviation,'NF');
 });

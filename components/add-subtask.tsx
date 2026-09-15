@@ -1,0 +1,3 @@
+'use client';
+import {useState} from 'react';
+export function AddSubtask({parent,act}:any){const [title,setTitle]=useState(''),[busy,setBusy]=useState(false);return <form className="add-subtask-row" onSubmit={async e=>{e.preventDefault();if(!title.trim())return;setBusy(true);try{await act({op:'task.create',board:parent.board,parent:parent.id,title:title.trim()});setTitle('');}catch{}finally{setBusy(false);}}}><span>＋</span><input aria-label={'New subtask for '+parent.title} placeholder="Add subtask…" value={title} maxLength={500} disabled={busy} onChange={e=>setTitle(e.target.value)}/><button disabled={busy||!title.trim()}>{busy?'Adding…':'Add subtask'}</button></form>;}

@@ -11,3 +11,11 @@
 .inline-field{display:block}.inline-field>small{display:block;font-size:12px;max-width:230px;white-space:normal}.inline-field input[aria-invalid=true]{outline:1px solid #bd6868;background:#fff7f7}
 .invitation-banner{display:flex;gap:20px;align-items:center;justify-content:space-between;margin-bottom:15px}
 .date-help{font-size:14px;margin:8px 0 14px}
+.subtask-container-row>td{padding:0!important;background:#f4f8fa}
+.subtask-container{margin:12px 12px 18px 30px;border-left:3px solid #72a6bc;border-radius:5px;overflow:hidden;background:#fff}
+.subtask-container .table-scroll{max-height:none;margin:0}
+.subtask-container thead{position:static;background:#eaf1f5}
+.subtask-container .subtask-row{background:#f8fbfc}
+.add-subtask-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid #dde6eb}
+.add-subtask-row input{flex:1;min-width:100px;border:0;background:transparent}
+.columns-available{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;padding:12px 0 20px}
