@@ -1,4 +1,4 @@
-import {State,Row,check,find,role,uid,now,audit,legacyMutate,legacyView} from './model';
+import {State,Row,check,find,role,uid,now,audit,legacyMutate,legacyView,boardMemberships} from './model';
 import {taskOperation} from './task-operations';
 import {provisionInvitedPeople} from './invited-people';
 const emailOf=(value:any)=>{check(typeof value==='string'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()),'Valid email required',400);return value.trim().toLowerCase();};
@@ -12,6 +12,7 @@ export function directory(s:State){
 export function workspaceView(s:State,u:Row){
  // The legacy projection still supports already-sent board invitation links.
  const v=legacyView({...s,invites:s.invites.filter(i=>i.board)},u);
+ v.members=v.boards.flatMap((b:Row)=>boardMemberships(s,b.id));
  const managers=u.admin||s.boards.some(b=>role(s,u,b.id)>=3);
  v.directory=managers?directory(s):[];
  v.invites=u.admin?s.invites.map(({token,...i})=>i):[];

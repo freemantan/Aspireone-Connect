@@ -10,14 +10,25 @@ export function initial():State { const s=Object.fromEntries(kinds.map(k=>[k,[]]
 export class AppError extends Error { status:number; constructor(message:string,status=400){super(message);this.status=status;} }
 export function check(v:any,m='Access denied',status=403):asserts v {if(!v)throw new AppError(m,status);}
 export const find=(s:State,k:string,id:string)=>{const r=s[k]?.find(x=>x.id===id);check(r,'Record unavailable',404);return r;};
-export const role=(s:State,u:Row,b:string)=>(!u.active||u.onboarding)?0:u.admin?4:({View:1,Edit:2,Manage:3}[s.members.find(m=>m.board===b&&m.user===u.id)?.role as 'View']||0);
-export const member=(s:State,b:string,id:string)=>s.members.some(m=>m.board===b&&m.user===id)&&s.users.some(u=>u.id===id&&u.active&&!u.deleted);
+const permission=(value:string)=>({View:1,Edit:2,Manage:3}[value as 'View']||0);
+export const role=(s:State,u:Row,b:string)=>(!u.active||u.onboarding||u.deleted)?0:u.admin?4:Math.max(permission(s.members.find(m=>m.board===b&&m.user===u.id)?.role),permission(s.members.find(m=>m.board==='board-0'&&m.user===u.id)?.role));
+export const member=(s:State,b:string,id:string)=>s.members.some(m=>(m.board===b||m.board==='board-0')&&m.user===id)&&s.users.some(u=>u.id===id&&u.active&&!u.deleted);
+export function boardMemberships(s:State,b:string){
+ const rows=s.members.filter(m=>m.board===b).map(m=>({...m}));
+ if(b==='board-0')return rows;
+ for(const director of s.members.filter(m=>m.board==='board-0'&&m.user)){
+  const existing=rows.find(m=>m.user===director.user);
+  if(existing){existing.directRole=existing.role;existing.role=permission(existing.role)>=permission(director.role)?existing.role:director.role;existing.directorsAccess=director.role;}
+  else rows.push({...director,id:'directors:'+b+':'+director.user,board:b,inherited:true,directorsAccess:director.role});
+ }
+ return rows;
+}
 export const completed=(s:State,t:Row)=>find(s,'boards',t.board).statuses.find((x:Row)=>x.id===t.status)?.class==='completed';
 export const archived=(s:State,t:Row)=>!!(t.archived||find(s,'boards',t.board).archived||find(s,'groups',t.group).archived||(t.parent&&find(s,'tasks',t.parent).archived));
 export const overdue=(s:State,t:Row,d=today())=>!!t.due&&t.due<d&&!completed(s,t)&&!archived(s,t);
 export function audit(s:State,u:Row,board:string,subject:string,action:string,before:any,after:any){s.activity.push({id:uid(),board,subject,user:u.id,action,before,after,at:now()});}
 export function notify(s:State,u:Row,b:string,ids:string[],subject:string,text:string,event:string){for(const id of new Set(ids)){const recipient=s.users.find(x=>x.id===id);if(id!==u.id&&recipient&&role(s,recipient,b)&&!s.notifications.some(n=>n.event===event&&n.user===id))s.notifications.push({id:uid(),board:b,user:id,subject,text,event,read:false,at:now()});}}
-export function legacyView(s:State,u:Row){check(u.active);const boards=s.boards.filter(b=>role(s,u,b.id)>0),ids=new Set(boards.map(b=>b.id));const {googleSub,...safeUser}=u;const v:any={me:safeUser,today:today(),pendingInvitations:s.invites.filter(i=>i.email===u.email&&i.state==='pending'&&i.expires>now()).map(i=>({id:i.id,token:i.token,boardName:find(s,'boards',i.board).name,role:i.role,expires:i.expires}))};for(const k of kinds)v[k]=s[k].filter(r=>k==='users'?u.admin||r.id===u.id||s.members.some(m=>m.user===r.id&&ids.has(m.board))||s.messages.some(m=>m.user===r.id&&ids.has(m.board))||s.activity.some(a=>a.user===r.id&&ids.has(a.board)):k==='boards'?ids.has(r.id):ids.has(r.board));v.invites=v.invites.filter((r:Row)=>role(s,u,r.board)>=3).map(({token,...r}:Row)=>r);v.notifications=v.notifications.filter((r:Row)=>r.user===u.id);v.reads=v.reads.filter((r:Row)=>r.user===u.id);v.messages=v.messages.map((m:Row)=>m.removed&&m.user!==u.id&&role(s,u,m.board)<3?{...m,body:'',mentions:[]}:m);v.files=v.files.map(({key,...r}:Row)=>r);v.users=v.users.map(({googleSub,...r}:Row)=>r);v.activity=v.activity.map((a:Row)=>{if(a.action==='Message changed')return {...a,before:null,after:null};return a;});v.boards=v.boards.map((b:Row)=>({...b,access:role(s,u,b.id)}));return v;}
+export function legacyView(s:State,u:Row){check(u.active);const boards=s.boards.filter(b=>role(s,u,b.id)>0),ids=new Set(boards.map(b=>b.id));const {googleSub,...safeUser}=u;const v:any={me:safeUser,today:today(),pendingInvitations:s.invites.filter(i=>i.email===u.email&&i.state==='pending'&&i.expires>now()).map(i=>({id:i.id,token:i.token,boardName:find(s,'boards',i.board).name,role:i.role,expires:i.expires}))};for(const k of kinds)v[k]=s[k].filter(r=>k==='users'?u.admin||r.id===u.id||[...ids].some(b=>member(s,b,r.id))||s.messages.some(m=>m.user===r.id&&ids.has(m.board))||s.activity.some(a=>a.user===r.id&&ids.has(a.board)):k==='boards'?ids.has(r.id):ids.has(r.board));v.invites=v.invites.filter((r:Row)=>role(s,u,r.board)>=3).map(({token,...r}:Row)=>r);v.notifications=v.notifications.filter((r:Row)=>r.user===u.id);v.reads=v.reads.filter((r:Row)=>r.user===u.id);v.messages=v.messages.map((m:Row)=>m.removed&&m.user!==u.id&&role(s,u,m.board)<3?{...m,body:'',mentions:[]}:m);v.files=v.files.map(({key,...r}:Row)=>r);v.users=v.users.map(({googleSub,...r}:Row)=>r);v.activity=v.activity.map((a:Row)=>{if(a.action==='Message changed')return {...a,before:null,after:null};return a;});v.boards=v.boards.map((b:Row)=>({...b,access:role(s,u,b.id)}));return v;}
 function editable(s:State,u:Row,b:string,min=1){check(role(s,u,b)>=min);check(!find(s,'boards',b).archived,'Restore the board before making changes');}
 function taskOpen(s:State,t:Row){check(!archived(s,t),'Restore archived work before making changes');}
 function version(r:Row,p:any){check(p.version===r.version,'This record changed. Refresh and review your draft before saving again.',409);}

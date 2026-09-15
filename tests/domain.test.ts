@@ -42,6 +42,20 @@ test('invitation backfill does not reactivate deleted or disabled people',()=>{
  s.members.push({id:'legacy-pending',board:'board-1',pendingEmail:person.email,role:'Edit'});provisionInvitedPeople(s);assert.equal(person.active,false);assert.equal(s.members.find(m=>m.id==='legacy-pending')!.user,undefined);
 });
 test('independent board permissions and Directors privacy',()=>{const {s,viewer,manager,admin}=setup();assert.equal(role(s,viewer,'board-1'),1);assert.equal(role(s,viewer,'board-3'),2);assert.equal(role(s,viewer,'board-0'),0);assert.equal(view(s,viewer).boards.length,5);assert.equal(view(s,admin).boards.length,6);denied(()=>mutate(s,manager,{op:'board.create',name:'Forbidden'}));denied(()=>mutate(s,manager,{op:'user',id:manager.id,admin:true}));});
+test('Directors members inherit board permissions and are assignable everywhere without system administration',()=>{
+ const {s,admin,editor,viewer,t,b}=setup();s.members=s.members.filter(m=>m.user!==editor.id);mutate(s,admin,{op:'member',board:'board-0',user:editor.id,role:'Edit'});
+ assert.ok(s.boards.every(board=>role(s,editor,board.id)===2));assert.equal(view(s,editor).tasks.length,s.tasks.length);denied(()=>mutate(s,editor,{op:'user',id:viewer.id,admin:true}));
+ const snapshot=view(s,viewer);assert.ok(snapshot.users.some((u:any)=>u.id===editor.id));assert.ok(snapshot.members.some((m:any)=>m.board===b&&m.user===editor.id&&m.inherited));assert.ok(!snapshot.boards.some((x:any)=>x.id==='board-0'));
+ update(s,admin,t,{assignee:editor.id,team:[editor.id]});const child=mutate(s,admin,{op:'task.create',board:b,parent:t.id,title:'Directors subtask'});update(s,admin,child,{assignee:editor.id,team:[editor.id]});
+ const newBoard=mutate(s,admin,{op:'board.create',name:'New board'});assert.equal(role(s,editor,newBoard.id),2);
+ mutate(s,admin,{op:'member',board:b,user:editor.id,role:'Manage'});assert.equal(role(s,editor,b),3);mutate(s,admin,{op:'member',board:'board-0',user:editor.id,role:null});assert.equal(role(s,editor,newBoard.id),0);assert.equal(role(s,editor,b),3);
+});
+test('pending Directors invitees can be assigned across boards but cannot access work before acceptance',()=>{
+ const {s,admin,editor,t,b}=setup();const i=mutate(s,admin,{op:'company.invite',email:'director@example.test',name:'Invited Director'});mutate(s,admin,{op:'member',board:'board-0',email:i.email,role:'View'});const person=s.users.find(u=>u.email===i.email)!;
+ update(s,editor,t,{assignee:person.id,team:[person.id]});assert.ok(view(s,editor).members.some((m:any)=>m.board===b&&m.user===person.id));assert.equal(role(s,person,b),0);
+ mutate(s,person,{op:'invite.accept',token:i.token});assert.equal(role(s,person,b),1);assert.equal(view(s,person).boards.length,s.boards.length);denied(()=>update(s,person,t,{title:'No editing'}));
+ mutate(s,admin,{op:'user',id:person.id,active:false});assert.equal(role(s,person,b),0);
+});
 test('View can create groups but not tasks',()=>{const {s,viewer,b,g}=setup();mutate(s,viewer,{op:'group.create',board:b,name:'Viewer group'});denied(()=>mutate(s,viewer,{op:'task.create',board:b,group:g,title:'No'}));});
 test('View may change own status and remark only',()=>{const {s,viewer,t}=setup();update(s,viewer,t,{remark:'My update',status:'pending'});assert.equal(t.remark,'My update');for(const changes of [{title:'No'},{assignee:'demo-edit'},{start:'2026-01-01'},{team:[]},{priority:'High'}])denied(()=>update(s,viewer,t,changes));denied(()=>update(s,viewer,s.tasks[1],{status:'wip'}));});
 test('Supporting membership does not confer View editing',()=>{const {s,viewer,t}=setup();t.assignee='demo-edit';t.team=[viewer.id];denied(()=>update(s,viewer,t,{remark:'No'}));});
@@ -72,7 +86,7 @@ test('one company invitation activates multiple board assignments and preserves 
  mutate(s,manager,{op:'member',board:b,email,role:'Edit'});mutate(s,admin,{op:'member',board:'board-0',email,role:'View'});mutate(s,admin,{op:'member',board:'board-2',email,role:'Manage'});
  mutate(s,admin,{op:'member',board:'board-2',email,role:null});assert.equal(i.state,'pending');assert.equal(s.invites.filter(x=>x.email===email).length,1);
  const person=s.users.find(u=>u.email===email)!;assert.equal(role(s,person,b),0);
- mutate(s,person,{op:'invite.accept',token:i.token});assert.equal(role(s,person,b),2);assert.equal(role(s,person,'board-0'),1);assert.equal(role(s,person,'board-2'),0);
+ mutate(s,person,{op:'invite.accept',token:i.token});assert.equal(role(s,person,b),2);assert.equal(role(s,person,'board-0'),1);assert.equal(role(s,person,'board-2'),1);
 });
 test('cancelling company invitation removes pending assignments and keeps private contacts out of manager snapshots',()=>{
  const {s,admin,manager,viewer,b}=setup();const i=mutate(s,admin,{op:'company.invite',email:'cancel@example.test',name:'Cancel Person',mobile:'123456'});
