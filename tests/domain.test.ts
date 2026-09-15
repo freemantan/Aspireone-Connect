@@ -93,8 +93,8 @@ test('person name and abbreviation remain independent and transfer on acceptance
  const u={id:'abbr-user',email:i.email,name:'Google Name',abbreviation:'GN',active:true,onboarding:true};s.users.push(u);mutate(s,u,{op:'invite.accept',token:i.token});
  assert.equal(u.name,'Full Person Name');assert.equal(u.abbreviation,'FPN');mutate(s,admin,{op:'person.edit',kind:'users',id:u.id,name:'New Full Name',abbreviation:'NF',mobile:''});assert.equal(u.name,'New Full Name');assert.equal(u.abbreviation,'NF');
 });
-test('subtasks inherit parent dates while top-level tasks start without dates',()=>{
- const {s,editor,t,b,g}=setup();t.start='2026-09-15';t.due='2026-09-20';const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Dated child'});assert.equal(child.start,t.start);assert.equal(child.due,t.due);
+test('new tasks and subtasks start without inherited dates',()=>{
+ const {s,editor,t,b,g}=setup();t.start='2026-09-15';t.due='2026-09-20';const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Dated child'});assert.equal(child.start,'');assert.equal(child.due,'');
  const task=mutate(s,editor,{op:'task.create',board:b,group:g,title:'New'});assert.equal(task.start,'');assert.equal(task.due,'');
 });
 test('list reordering persists and moving a parent to a group carries its subtasks',()=>{
