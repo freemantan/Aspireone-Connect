@@ -5,7 +5,7 @@ export function taskOperation(s:State,u:Row,p:any){
  check(task.version===p.version,'This task changed. Refresh before continuing.',409);
  if(p.op==='task.delete'){
   check(p.confirm===true,'Confirm deletion first',400);
-  const children=s.tasks.filter(t=>t.parent===task.id);check(children.length===(p.childCount||0),'Subtasks changed. Review and confirm deletion again.',409);
+  const children=s.tasks.filter(t=>t.parent===task.id);check(children.length===0,'Delete or move all subtasks before deleting this task.',400);
   const ids=new Set([task.id,...children.map(t=>t.id)]);
   s.tasks=s.tasks.filter(t=>!ids.has(t.id));
   for(const t of s.tasks)if(t.depends?.some((id:string)=>ids.has(id))){t.depends=t.depends.filter((id:string)=>!ids.has(id));t.version++;}

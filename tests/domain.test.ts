@@ -107,12 +107,14 @@ test('subtasks can move beside siblings under another parent but cannot change b
  assert.throws(()=>mutate(s,editor,{op:'task.move',board:b,id:child.id,version:child.version,target:parent.id}),/beside/);
  mutate(s,editor,{op:'task.move',board:b,id:child.id,version:child.version,target:other.id});assert.equal(child.parent,parent.id);assert.ok(child.order<other.order);
 });
-test('deletion requires confirmation and current child count, removes subtree and denies viewers',()=>{
+test('deletion requires confirmation, blocks parents with subtasks and denies viewers',()=>{
  const {s,editor,viewer,t,b}=setup();const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Child'});const count=s.tasks.filter(x=>x.parent===t.id).length;
  denied(()=>mutate(s,viewer,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true,childCount:count}));
  assert.throws(()=>mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version}),/Confirm/);
- assert.throws(()=>mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true,childCount:count+1}),/Subtasks changed/);
- s.files.push({id:'attachment-delete',board:b,subject:child.id,removed:false});mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true,childCount:count});assert.ok(!s.tasks.some(x=>x.id===t.id||x.id===child.id));assert.equal(s.files.find(f=>f.id==='attachment-delete')!.removed,true);
+ assert.throws(()=>mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true}),/Delete or move all subtasks/);
+ child.archived=true;assert.throws(()=>mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true}),/Delete or move all subtasks/);assert.ok(s.tasks.includes(t)&&s.tasks.includes(child));
+ s.files.push({id:'attachment-delete',board:b,subject:child.id,removed:false});mutate(s,editor,{op:'task.delete',board:b,id:child.id,version:child.version,confirm:true});assert.ok(s.tasks.includes(t));assert.ok(!s.tasks.includes(child));assert.equal(s.files.find(f=>f.id==='attachment-delete')!.removed,true);
+ for(const sibling of s.tasks.filter(x=>x.parent===t.id))mutate(s,editor,{op:'task.delete',board:b,id:sibling.id,version:sibling.version,confirm:true});mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true});assert.ok(!s.tasks.includes(t));
 });
 test('archived tasks can be restored without rewriting other task fields',()=>{
  const {s,manager,viewer,t,b}=setup();t.archived=true;const due=t.due;denied(()=>mutate(s,viewer,{op:'task.restore',board:b,id:t.id,version:t.version}));mutate(s,manager,{op:'task.restore',board:b,id:t.id,version:t.version});assert.equal(t.archived,false);assert.equal(t.due,due);
