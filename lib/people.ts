@@ -25,9 +25,31 @@ function activateAssignments(s:State,u:Row){
 }
 export function workspaceMutate(s:State,u:Row,p:any):any{
  check(u.active);
+ if(p.op==='person.edit'){
+  check(u.admin);check(['users','invites'].includes(p.kind),'Invalid person type',400);
+  const person=find(s,p.kind,p.id);check(!person.deleted,'User has been deleted',400);
+  const name=typeof p.name==='string'?p.name.trim():'',mobile=typeof p.mobile==='string'?p.mobile.trim():'';
+  check(name&&name.length<=150,'Person Short Name is required (up to 150 characters)',400);check(mobile.length<=40,'Mobile number is too long',400);
+  for(const row of [...s.users,...s.invites].filter(x=>x.email===person.email)){row.name=name;row.mobile=mobile;}
+  audit(s,u,'',person.id,'Person details updated',null,null);return;
+ }
+ if(p.op==='invite.remove'){
+  check(u.admin);const i=find(s,'invites',p.id);s.invites=s.invites.filter(x=>x.id!==i.id);
+  if(i.state!=='accepted'&&!pending(s,i.email))s.members=s.members.filter(m=>m.pendingEmail!==i.email);
+  audit(s,u,'',i.id,'Invitation removed',null,i.email);return;
+ }
+ if(p.op==='user.delete'){
+  check(u.admin);const person=find(s,'users',p.id);check(person.id!==u.id,'You cannot delete yourself',400);
+  check(!person.admin||!person.active||s.users.some(x=>x.id!==person.id&&x.admin&&x.active&&!x.deleted),'Keep an active administrator',400);
+  person.active=false;person.admin=false;person.deleted=true;person.deletedAt=now();person.mobile='';
+  s.members=s.members.filter(m=>m.user!==person.id&&m.pendingEmail!==person.email);
+  s.invites=s.invites.filter(i=>i.email!==person.email);
+  audit(s,u,'',person.id,'User deleted',null,person.email);return;
+ }
+ if(p.op==='user')check(!find(s,'users',p.id).deleted,'User has been deleted',400);
  if(p.op==='company.invite'){
   check(u.admin);const email=emailOf(p.email),name=typeof p.name==='string'?p.name.trim():'';
-  check(name&&name.length<=150,'Person name is required (up to 150 characters)',400);
+  check(name&&name.length<=150,'Person Short Name is required (up to 150 characters)',400);
   const mobile=typeof p.mobile==='string'?p.mobile.trim():'';check(mobile.length<=40,'Mobile number is too long',400);
   check(!s.users.some(x=>x.email===email),'This person already has an account. Add them from Board Members.',400);
   check(!pending(s,email),'This person already has an invitation. Use Resend in Administration.',400);

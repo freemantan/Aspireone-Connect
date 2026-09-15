@@ -45,3 +45,27 @@ test('cancelling company invitation removes pending assignments and keeps privat
  assert.ok(!JSON.stringify(view(s,manager)).includes('123456'));mutate(s,admin,{op:'invite.update',id:i.id,cancel:true});assert.equal(s.members.filter(m=>m.pendingEmail===i.email).length,0);
  assert.throws(()=>mutate(s,manager,{op:'member',board:b,email:i.email,role:'View'}),/Choose an accepted/);
 });
+test('administrators edit short names and mobile numbers across invitations and accounts',()=>{
+ const {s,admin,manager,viewer}=setup();const i={id:'details-invite',email:viewer.email,name:'Old',mobile:'111',state:'accepted'};s.invites.push(i);
+ denied(()=>mutate(s,manager,{op:'person.edit',kind:'users',id:viewer.id,name:'No',mobile:''}));
+ mutate(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:'  Short Name  ',mobile:'+65 1234'});
+ assert.equal(viewer.name,'Short Name');assert.equal(i.name,'Short Name');assert.equal(viewer.mobile,'+65 1234');
+ mutate(s,admin,{op:'person.edit',kind:'invites',id:i.id,name:'Short',mobile:''});assert.equal(viewer.mobile,'');
+ assert.throws(()=>mutate(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:' ',mobile:''}),/Short Name/);
+});
+test('invitation removal invalidates pending links without removing accepted membership',()=>{
+ const {s,admin,manager,viewer,b}=setup();const i=mutate(s,admin,{op:'company.invite',name:'Pending',email:'remove@example.test'});
+ mutate(s,manager,{op:'member',board:b,email:i.email,role:'View'});denied(()=>mutate(s,manager,{op:'invite.remove',id:i.id}));
+ mutate(s,admin,{op:'invite.remove',id:i.id});assert.ok(!s.invites.some(x=>x.id===i.id));assert.ok(!s.members.some(x=>x.pendingEmail===i.email));
+ assert.throws(()=>mutate(s,viewer,{op:'invite.accept',token:i.token}),/unavailable/);
+ const accepted={id:'accepted-record',email:viewer.email,state:'accepted'};s.invites.push(accepted);const before=role(s,viewer,b);
+ mutate(s,admin,{op:'invite.remove',id:accepted.id});assert.equal(role(s,viewer,b),before);
+});
+test('deleting a portal user revokes access while preserving history and blocks reactivation',()=>{
+ const {s,admin,manager,viewer,b,t}=setup();denied(()=>mutate(s,manager,{op:'user.delete',id:viewer.id}));
+ assert.throws(()=>mutate(s,admin,{op:'user.delete',id:admin.id}),/yourself/);
+ s.invites.push({id:'delete-invite',email:viewer.email,state:'pending'});const tasks=s.tasks.length;mutate(s,admin,{op:'user.delete',id:viewer.id});
+ assert.equal(viewer.deleted,true);assert.equal(role(s,viewer,b),0);assert.equal(s.tasks.length,tasks);assert.equal(t.assignee,viewer.id);
+ assert.ok(!s.members.some(m=>m.user===viewer.id));assert.ok(!s.invites.some(i=>i.email===viewer.email));assert.ok(!view(s,admin).directory.some((p:any)=>p.email===viewer.email));
+ assert.throws(()=>mutate(s,admin,{op:'user',id:viewer.id,active:true}),/deleted/);
+});
