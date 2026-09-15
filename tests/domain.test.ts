@@ -4,10 +4,30 @@ import {initial,mutate,role,view,runRecurrences,completed,overdue,archived,today
 import {demo} from '../lib/demo';
 import {updateBoardNames} from '../lib/workspace-updates';
 import {columnPreferences,standardColumns} from '../lib/column-preferences';
+import {provisionInvitedPeople} from '../lib/invited-people';
 function setup(){const s=initial();demo(s);const admin=s.users[0],viewer=s.users[1],editor=s.users[2],manager=s.users[3],t=s.tasks[0];return {s,admin,viewer,editor,manager,t,b:t.board,g:t.group};}
 function update(s:any,u:any,t:any,changes:any,extra={}){return mutate(s,u,{op:'task.update',board:t.board,id:t.id,version:t.version,changes,...extra});}
 const denied=(fn:()=>any)=>assert.throws(fn,/Access denied/);
 test('production starts with six empty boards and no invented users',()=>{const s=initial();assert.equal(s.boards.length,6);assert.equal(s.users.length,0);assert.equal(s.tasks.length,0)});
+test('sent invitations create stable assignable people without granting access before acceptance',()=>{
+ const {s,admin,manager,editor,t,b}=setup();const invite=mutate(s,admin,{op:'company.invite',email:'pending@example.test',name:'Pending Person',mobile:'123',abbreviation:'PP'});
+ mutate(s,manager,{op:'member',board:b,email:invite.email,role:'Edit'});
+ assert.equal(provisionInvitedPeople(s),false);invite.delivery='failed';assert.equal(provisionInvitedPeople(s),false);
+ invite.delivery='sent';assert.equal(provisionInvitedPeople(s),true);const person=s.users.find(u=>u.email===invite.email)!;assert.equal(person.name,'Pending Person');assert.equal(person.mobile,'123');assert.equal(person.abbreviation,'PP');assert.equal(provisionInvitedPeople(s),false);
+ update(s,editor,t,{assignee:person.id,team:[person.id]});const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Assigned child'});update(s,editor,child,{assignee:person.id,team:[person.id]});
+ assert.equal(role(s,person,b),0);assert.equal(view(s,person).tasks.length,0);denied(()=>update(s,person,t,{remark:'Premature access'}));assert.ok(view(s,editor).users.some((u:any)=>u.id===person.id));assert.equal(view(s,editor).users.find((u:any)=>u.id===person.id).mobile,undefined);
+ mutate(s,person,{op:'invite.accept',token:invite.token});assert.equal(role(s,person,b),2);assert.equal(t.assignee,person.id);assert.deepEqual(child.team,[person.id]);assert.equal(s.users.filter(u=>u.email===invite.email).length,1);assert.equal(s.members.filter(m=>m.board===b&&m.user===person.id).length,1);
+});
+test('sent invite backfill supports adding later board membership and cancellation revokes assignment choices',()=>{
+ const {s,admin,manager,editor,t,b}=setup();const i=mutate(s,admin,{op:'company.invite',email:'later@example.test',name:'Later'});i.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===i.email)!;
+ assert.throws(()=>update(s,editor,t,{assignee:person.id}),/board member/);mutate(s,manager,{op:'member',board:b,email:i.email,role:'View'});update(s,editor,t,{assignee:person.id});
+ mutate(s,admin,{op:'invite.remove',id:i.id});assert.equal(s.members.some(m=>m.user===person.id),false);assert.throws(()=>update(s,editor,t,{team:[person.id]}),/board member|supporting/);assert.equal(role(s,person,b),0);
+ const replacement=mutate(s,admin,{op:'company.invite',email:person.email,name:'Later'});replacement.delivery='sent';provisionInvitedPeople(s);assert.equal(s.users.filter(u=>u.email===person.email).length,1);
+});
+test('invitation backfill does not reactivate deleted or disabled people',()=>{
+ const {s,admin}=setup();const i=mutate(s,admin,{op:'company.invite',email:'disabled@example.test',name:'Disabled'});i.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===i.email)!;person.active=false;person.deleted=true;
+ s.members.push({id:'legacy-pending',board:'board-1',pendingEmail:person.email,role:'Edit'});provisionInvitedPeople(s);assert.equal(person.active,false);assert.equal(s.members.find(m=>m.id==='legacy-pending')!.user,undefined);
+});
 test('independent board permissions and Directors privacy',()=>{const {s,viewer,manager,admin}=setup();assert.equal(role(s,viewer,'board-1'),1);assert.equal(role(s,viewer,'board-3'),2);assert.equal(role(s,viewer,'board-0'),0);assert.equal(view(s,viewer).boards.length,5);assert.equal(view(s,admin).boards.length,6);denied(()=>mutate(s,manager,{op:'board.create',name:'Forbidden'}));denied(()=>mutate(s,manager,{op:'user',id:manager.id,admin:true}));});
 test('View can create groups but not tasks',()=>{const {s,viewer,b,g}=setup();mutate(s,viewer,{op:'group.create',board:b,name:'Viewer group'});denied(()=>mutate(s,viewer,{op:'task.create',board:b,group:g,title:'No'}));});
 test('View may change own status and remark only',()=>{const {s,viewer,t}=setup();update(s,viewer,t,{remark:'My update',status:'pending'});assert.equal(t.remark,'My update');for(const changes of [{title:'No'},{assignee:'demo-edit'},{start:'2026-01-01'},{team:[]},{priority:'High'}])denied(()=>update(s,viewer,t,changes));denied(()=>update(s,viewer,s.tasks[1],{status:'wip'}));});

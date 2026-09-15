@@ -1,9 +1,10 @@
 import {initial,State,AppError} from './model';
 import {rpc,privateFiles,settings} from './supabase';
 import {updateBoardNames} from './workspace-updates';
+import {provisionInvitedPeople} from './invited-people';
 export const runtime=()=>({...settings(),BUCKET:privateFiles}) as any;
 export async function load():Promise<{state:State;revision:number}>{
- for(let n=0;n<5;n++){const data=await rpc('ao_load');if(!updateBoardNames(data.state))return data;
+ for(let n=0;n<5;n++){const data=await rpc('ao_load');const renamed=updateBoardNames(data.state),provisioned=provisionInvitedPeople(data.state);if(!renamed&&!provisioned)return data;
  if(await rpc('ao_commit',{expected_revision:data.revision,new_state:data.state}))return {...data,revision:data.revision+1};}
  throw new AppError('Workspace is busy. Please retry.',409);
 }

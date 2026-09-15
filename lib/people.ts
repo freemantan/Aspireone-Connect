@@ -1,5 +1,6 @@
 import {State,Row,check,find,role,uid,now,audit,legacyMutate,legacyView} from './model';
 import {taskOperation} from './task-operations';
+import {provisionInvitedPeople} from './invited-people';
 const emailOf=(value:any)=>{check(typeof value==='string'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()),'Valid email required',400);return value.trim().toLowerCase();};
 const pending=(s:State,email:string)=>s.invites.find(i=>i.email===email&&i.state==='pending');
 export function directory(s:State){
@@ -56,7 +57,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   check(u.admin);const email=emailOf(p.email),name=typeof p.name==='string'?p.name.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);
   const mobile=typeof p.mobile==='string'?p.mobile.trim():'';check(mobile.length<=40,'Mobile number is too long',400);
-  check(!s.users.some(x=>x.email===email),'This person already has an account. Add them from Board Members.',400);
+  check(!s.users.some(x=>x.email===email&&(!x.onboarding||!x.active||x.deleted)),'This person already has an account. Add them from Board Members.',400);
   check(!pending(s,email),'This person already has an invitation. Use Resend in Administration.',400);
   check(p.abbreviation===undefined||(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12),'Abbr Name must be up to 12 characters',400);const i={id:uid(),email,name,mobile,abbreviation:p.abbreviation?.trim()||'',token:uid()+uid(),expires:new Date(Date.now()+7*86400000).toISOString(),state:'pending',delivery:'queued',inviter:u.id,at:now()};
   s.invites.push(i);audit(s,u,'',i.id,'Company invitation created',null,email);return i;
@@ -83,7 +84,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const prev=s.members.find(matches);s.members=s.members.filter(m=>!matches(m));
   // Removing access also invalidates legacy board-specific links for this board.
   if(!p.role)for(const i of s.invites.filter(i=>i.board===board.id&&i.email===email&&i.state==='pending'))i.state='cancelled';
-  if(p.role){const awaiting=invite&&!s.invites.some(i=>i.email===email&&i.state==='accepted');s.members.push({id:uid(),board:board.id,...(person&&!awaiting?{user:person.id}:{pendingEmail:email}),role:p.role});}
+  if(p.role){const awaiting=invite&&!s.invites.some(i=>i.email===email&&i.state==='accepted');s.members.push({id:uid(),board:board.id,...(person&&!awaiting?{user:person.id}:{pendingEmail:email}),role:p.role});provisionInvitedPeople(s);}
   audit(s,u,board.id,person?.id||email,'Membership changed',prev,p.role||'Removed');return;
  }
  return legacyMutate(s,u,p);
