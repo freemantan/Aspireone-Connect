@@ -13,9 +13,10 @@ The build runs type checking and domain tests before compiling the app.
 The deploy command uses the generated server configuration, rather than looking
 for a missing root Wrangler file. Preview D1/R2 resources are removed.
 
-This release publishes the app shell only. The backend still needs migration to
-Supabase Auth, PostgreSQL and Storage. Do not invite staff yet. Setting a
-SUPABASE_URL alone does not implement that migration. No secret keys are included.
+The app now uses Supabase Auth, PostgreSQL and private Storage through the Worker.
+Follow SUPABASE-ACTIVATION.md to run the database script, configure the Worker
+secret, and allow the callback URLs. Pilot testing is required before staff rollout.
+No secret keys are included.
 Keep the workers.dev address for deployment checks before connecting the domain.
 
 App: https://connect.aspireone.ai

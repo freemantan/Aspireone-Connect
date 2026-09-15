@@ -11,6 +11,7 @@ delete config.r2_buckets;
 config.vars = {
   APP_ORIGIN: 'https://connect.aspireone.ai',
   SUPABASE_URL: 'https://muernewfqveolaxuggot.supabase.co',
+  SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_mNczdLS4FP9AuFqo6CBTWQ_AhAaYOCr',
   ADMIN_EMAILS: 'freeman@aspirehub.com',
   DEMO_MODE: 'false',
   UPLOAD_LIMIT_MB: '25',
@@ -18,4 +19,4 @@ config.vars = {
 };
 config.observability = { enabled: true };
 writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
-console.log('Cloudflare deployment prepared. Supabase backend integration is still required.');
+console.log('Cloudflare deployment prepared. Run the Supabase SQL setup and configure SUPABASE_SECRET_KEY before signing in.');
