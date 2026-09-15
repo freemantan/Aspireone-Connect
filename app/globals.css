@@ -22,3 +22,4 @@
 .drag-handle{cursor:grab;touch-action:none;color:#73818d;padding:4px}
 .drag-handle:active{cursor:grabbing}
 .task-row-actions{display:flex;gap:8px;white-space:nowrap}
+.table-scroll .compact-person-picker{min-width:0;width:auto;max-width:9rem}
