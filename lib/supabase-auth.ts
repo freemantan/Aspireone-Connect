@@ -30,7 +30,7 @@ export async function callback(r:Request){
   let u=s.users.find(u=>u.email===email);const admins=String(runtime().ADMIN_EMAILS||'').split(',').map((x:string)=>x.trim().toLowerCase());
   const invited=s.invites.some(i=>i.email===email&&i.state==='pending'&&i.expires>now());
   check((u&&u.active)||admins.includes(email)||invited,'Access unavailable. Ask a board manager for an invitation.',403);
-  if(!u){const name=verified.user_metadata?.full_name||email;u={id:uid(),email,name,abbreviation:name.split(' ').map((x:string)=>x[0]).join('').slice(0,4),active:true,admin:admins.includes(email)};s.users.push(u);}
+  if(!u){const name=verified.user_metadata?.full_name||email;u={id:uid(),email,name,abbreviation:name.split(' ').map((x:string)=>x[0]).join('').slice(0,4),active:true,onboarding:!admins.includes(email),admin:admins.includes(email)};s.users.push(u);}
   check(u.active,'Account inactive',403);check(!u.googleSub||u.googleSub===verified.id,'Account identity mismatch',403);u.googleSub=verified.id;return u;
  });
  const headers=new Headers({Location:saved.invite?'/?invite='+encodeURIComponent(saved.invite):'/','Cache-Control':'no-store'});

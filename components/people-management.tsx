@@ -1,0 +1,27 @@
+'use client';
+import {useState} from 'react';
+export function AdministrationPeople({s,act}:any){
+ const [name,setName]=useState(''),[email,setEmail]=useState(''),[mobile,setMobile]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const run=async(p:any)=>{setBusy(true);setMessage('');try{await act(p);return true;}catch{return false;}finally{setBusy(false);}};
+ return <div className="panel"><h2>People and invitations</h2><p>Invite each person once. Add them to boards separately, before or after they accept.</p>
+ <form className="detail-body" onSubmit={async e=>{e.preventDefault();if(await run({op:'company.invite',name,email,mobile})){setName('');setEmail('');setMobile('');setMessage('Invitation sent. You can now add this person to boards.');}}}>
+ <label>Person name<input required maxLength={150} value={name} onChange={e=>setName(e.target.value)}/></label>
+ <label>Email address<input required type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label>
+ <label>Mobile number (optional)<input type="tel" maxLength={40} value={mobile} onChange={e=>setMobile(e.target.value)}/></label>
+ <button className="primary" disabled={busy}>Send invitation</button><p role="status">{message}</p></form>
+ <h3>Invitations</h3>{!s.invites.length&&<p>No invitations yet.</p>}{s.invites.map((i:any)=><div className="member-row" key={i.id}><span>{i.name||i.email}<small>{i.email}{i.mobile?' · '+i.mobile:''}</small><small>{i.state==='pending'&&i.expires<new Date().toISOString()?'Expired':i.state} · {i.delivery}{i.board?' · Earlier board invitation':''}</small></span>{i.state!=='accepted'&&<><button disabled={busy} onClick={()=>run({op:'invite.update',id:i.id})}>Resend</button>{i.state==='pending'&&<button disabled={busy} onClick={()=>{if(confirm('Cancel this invitation and remove pending board assignments?'))run({op:'invite.update',id:i.id,cancel:true});}}>Cancel invitation</button>}</>}</div>)}
+ <h3>System users</h3><p>Board Manage access never grants system administration.</p>{s.users.map((u:any)=><div className="member-row" key={u.id}><span>{u.name}<small>{u.email}{u.mobile?' · '+u.mobile:''}</small></span><label><input type="checkbox" checked={!!u.active} disabled={busy} onChange={e=>run({op:'user',id:u.id,active:e.target.checked})}/> Active</label><label><input type="checkbox" checked={!!u.admin} disabled={busy} onChange={e=>{if(confirm('Change global administrator access for '+u.email+'?'))run({op:'user',id:u.id,admin:e.target.checked});}}/> Administrator</label></div>)}</div>;
+}
+export function BoardPeople({s,board,act}:any){
+ const [email,setEmail]=useState(''),[access,setAccess]=useState('View'),[busy,setBusy]=useState(false);
+ const members=s.members.filter((m:any)=>m.board===board.id);
+ const emailFor=(m:any)=>m.pendingEmail||s.users.find((u:any)=>u.id===m.user)?.email;
+ const options=(s.directory||[]).filter((p:any)=>!members.some((m:any)=>emailFor(m)===p.email));
+ const run=async(p:any)=>{setBusy(true);try{await act(p);return true;}catch{return false;}finally{setBusy(false);}};
+ return <div className="detail-body"><p>Add accepted or invited people to this board. New company invitations are sent from Administration.</p>
+ <form onSubmit={async e=>{e.preventDefault();if(await run({op:'member',board:board.id,email,role:access}))setEmail('');}}>
+ <label>Person<select required value={email} onChange={e=>setEmail(e.target.value)}><option value="">Choose a person</option>{options.map((p:any)=><option key={p.email} value={p.email}>{p.name} — {p.email} · {p.status}</option>)}</select></label>
+ <label>Board access<select value={access} onChange={e=>setAccess(e.target.value)}>{['View','Edit','Manage'].map(r=><option key={r}>{r}</option>)}</select></label>
+ <button className="primary" disabled={busy||!email||board.archived}>Add member</button></form>
+ <h3>Board members</h3>{!members.length&&<p>No members have been added yet.</p>}{members.map((m:any)=>{const email=emailFor(m),person=(s.directory||[]).find((p:any)=>p.email===email)||s.users.find((u:any)=>u.id===m.user);return <div className="member-row" key={m.id}><span>{person?.name||email||'Former member'}<small>{email}</small>{m.pendingEmail&&<small>Awaiting invitation acceptance</small>}</span><select aria-label={'Access for '+(person?.name||email)} disabled={busy||board.archived} value={m.role} onChange={e=>run({op:'member',board:board.id,email,role:e.target.value})}>{['View','Edit','Manage'].map(r=><option key={r}>{r}</option>)}</select><button disabled={busy||board.archived} onClick={()=>{if(confirm('Remove this person’s access to this board and its files?'))run({op:'member',board:board.id,email,role:null});}}>Remove member</button></div>;})}</div>;
+}
