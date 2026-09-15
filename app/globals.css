@@ -23,3 +23,4 @@
 .drag-handle:active{cursor:grabbing}
 .task-row-actions{display:flex;gap:8px;white-space:nowrap}
 .table-scroll .compact-person-picker{min-width:0;width:auto;max-width:9rem}
+.table-scroll .chat-icon small{font-size:18px;font-weight:700;line-height:1.2;min-width:1.2em}

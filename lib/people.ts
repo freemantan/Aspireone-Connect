@@ -28,6 +28,17 @@ function activateAssignments(s:State,u:Row){
 }
 export function workspaceMutate(s:State,u:Row,p:any):any{
  check(u.active);
+ if(p.op==='group.move'){
+  const group=find(s,'groups',p.id),target=find(s,'groups',p.target);
+  check(group.board===p.board&&target.board===group.board,'Move groups within the same board',400);check(role(s,u,group.board)>=2);
+  check(!find(s,'boards',group.board).archived&&!group.archived&&!target.archived,'Restore archived work before moving groups',400);
+  check(group.version===p.version,'This group changed. Refresh before continuing.',409);
+  if(group.id===target.id)return;
+  const groups=s.groups.filter(g=>g.board===group.board&&g.id!==group.id).sort((a,b)=>a.order-b.order);
+  groups.splice(groups.findIndex(g=>g.id===target.id)+(p.after?1:0),0,group);
+  groups.forEach((g,index)=>{if(g.order!==index){g.order=index;g.version++;}});
+  audit(s,u,group.board,group.id,'Group moved',null,{order:group.order});return;
+ }
  if(p.op==='group.delete'){
   const group=find(s,'groups',p.id);check(group.board===p.board);check(role(s,u,group.board)>=2);
   check(!find(s,'boards',group.board).archived,'Restore the board first',400);

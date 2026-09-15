@@ -9,6 +9,13 @@ function setup(){const s=initial();demo(s);const admin=s.users[0],viewer=s.users
 function update(s:any,u:any,t:any,changes:any,extra={}){return mutate(s,u,{op:'task.update',board:t.board,id:t.id,version:t.version,changes,...extra});}
 const denied=(fn:()=>any)=>assert.throws(fn,/Access denied/);
 test('production starts with six empty boards and no invented users',()=>{const s=initial();assert.equal(s.boards.length,6);assert.equal(s.users.length,0);assert.equal(s.tasks.length,0)});
+test('groups reorder both directions without moving tasks and reject invalid moves',()=>{
+ const {s,editor,viewer,t,b}=setup();const first=mutate(s,editor,{op:'group.create',board:b,name:'First'}),second=mutate(s,editor,{op:'group.create',board:b,name:'Second'});const taskGroup=t.group;
+ const move=(user:any,g:any,target:any,extra={})=>mutate(s,user,{op:'group.move',board:b,id:g.id,version:g.version,target:target.id,...extra});
+ denied(()=>move(viewer,second,first));move(editor,second,first);assert.ok(second.order<first.order);move(editor,second,first,{after:true});assert.ok(second.order>first.order);assert.equal(t.group,taskGroup);
+ assert.throws(()=>move(editor,second,first,{version:0}),/changed/);first.archived=true;assert.throws(()=>move(editor,second,first),/Restore/);first.archived=false;
+ const other=s.groups.find(g=>g.board!==b)!;assert.throws(()=>move(editor,second,other),/same board/);assert.equal(new Set(s.groups.filter(g=>g.board===b).map(g=>g.order)).size,s.groups.filter(g=>g.board===b).length);
+});
 test('sent invitations create stable assignable people without granting access before acceptance',()=>{
  const {s,admin,manager,editor,t,b}=setup();const invite=mutate(s,admin,{op:'company.invite',email:'pending@example.test',name:'Pending Person',mobile:'123',abbreviation:'PP'});
  assert.equal(provisionInvitedPeople(s),false);invite.delivery='failed';assert.equal(provisionInvitedPeople(s),false);
