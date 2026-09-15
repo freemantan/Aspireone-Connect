@@ -93,3 +93,27 @@ test('person name and abbreviation remain independent and transfer on acceptance
  const u={id:'abbr-user',email:i.email,name:'Google Name',abbreviation:'GN',active:true,onboarding:true};s.users.push(u);mutate(s,u,{op:'invite.accept',token:i.token});
  assert.equal(u.name,'Full Person Name');assert.equal(u.abbreviation,'FPN');mutate(s,admin,{op:'person.edit',kind:'users',id:u.id,name:'New Full Name',abbreviation:'NF',mobile:''});assert.equal(u.name,'New Full Name');assert.equal(u.abbreviation,'NF');
 });
+test('subtasks inherit parent dates while top-level tasks start without dates',()=>{
+ const {s,editor,t,b,g}=setup();t.start='2026-09-15';t.due='2026-09-20';const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Dated child'});assert.equal(child.start,t.start);assert.equal(child.due,t.due);
+ const task=mutate(s,editor,{op:'task.create',board:b,group:g,title:'New'});assert.equal(task.start,'');assert.equal(task.due,'');
+});
+test('list reordering persists and moving a parent to a group carries its subtasks',()=>{
+ const {s,editor,t,b,g}=setup();const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Child'});const next=mutate(s,editor,{op:'task.create',board:b,group:g,title:'Next'});
+ mutate(s,editor,{op:'task.move',board:b,id:next.id,version:next.version,target:t.id,after:false});assert.ok(next.order<t.order);
+ const group=mutate(s,editor,{op:'group.create',board:b,name:'Destination'});mutate(s,editor,{op:'task.move',board:b,id:t.id,version:t.version,group:group.id});assert.equal(t.group,group.id);assert.equal(child.group,group.id);
+});
+test('subtasks can move beside siblings under another parent but cannot change board or level',()=>{
+ const {s,editor,t,b,g}=setup();const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Child'});const parent=mutate(s,editor,{op:'task.create',board:b,group:g,title:'Parent 2'});const other=mutate(s,editor,{op:'task.create',board:b,parent:parent.id,title:'Other child'});
+ assert.throws(()=>mutate(s,editor,{op:'task.move',board:b,id:child.id,version:child.version,target:parent.id}),/beside/);
+ mutate(s,editor,{op:'task.move',board:b,id:child.id,version:child.version,target:other.id});assert.equal(child.parent,parent.id);assert.ok(child.order<other.order);
+});
+test('deletion requires confirmation and current child count, removes subtree and denies viewers',()=>{
+ const {s,editor,viewer,t,b}=setup();const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Child'});const count=s.tasks.filter(x=>x.parent===t.id).length;
+ denied(()=>mutate(s,viewer,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true,childCount:count}));
+ assert.throws(()=>mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version}),/Confirm/);
+ assert.throws(()=>mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true,childCount:count+1}),/Subtasks changed/);
+ s.files.push({id:'attachment-delete',board:b,subject:child.id,removed:false});mutate(s,editor,{op:'task.delete',board:b,id:t.id,version:t.version,confirm:true,childCount:count});assert.ok(!s.tasks.some(x=>x.id===t.id||x.id===child.id));assert.equal(s.files.find(f=>f.id==='attachment-delete')!.removed,true);
+});
+test('archived tasks can be restored without rewriting other task fields',()=>{
+ const {s,manager,viewer,t,b}=setup();t.archived=true;const due=t.due;denied(()=>mutate(s,viewer,{op:'task.restore',board:b,id:t.id,version:t.version}));mutate(s,manager,{op:'task.restore',board:b,id:t.id,version:t.version});assert.equal(t.archived,false);assert.equal(t.due,due);
+});

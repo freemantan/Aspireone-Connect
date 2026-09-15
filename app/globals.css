@@ -19,3 +19,6 @@
 .add-subtask-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid #dde6eb}
 .add-subtask-row input{flex:1;min-width:100px;border:0;background:transparent}
 .columns-available{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;padding:12px 0 20px}
+.drag-handle{cursor:grab;touch-action:none;color:#73818d;padding:4px}
+.drag-handle:active{cursor:grabbing}
+.task-row-actions{display:flex;gap:8px;white-space:nowrap}

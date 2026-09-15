@@ -1,4 +1,5 @@
 import {State,Row,check,find,role,uid,now,audit,legacyMutate,legacyView} from './model';
+import {taskOperation} from './task-operations';
 const emailOf=(value:any)=>{check(typeof value==='string'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()),'Valid email required',400);return value.trim().toLowerCase();};
 const pending=(s:State,email:string)=>s.invites.find(i=>i.email===email&&i.state==='pending');
 export function directory(s:State){
@@ -25,6 +26,7 @@ function activateAssignments(s:State,u:Row){
 }
 export function workspaceMutate(s:State,u:Row,p:any):any{
  check(u.active);
+ if(['task.move','task.delete','task.restore'].includes(p.op))return taskOperation(s,u,p);
  if(p.op==='settings'&&Array.isArray(p.columns)&&p.hidden===undefined){
   const board=find(s,'boards',p.board);p={...p,hidden:[...(board.hidden||[]),...p.columns.filter((c:Row)=>!board.columns.some((old:Row)=>old.id===c.id)).map((c:Row)=>c.id)]};
  }
