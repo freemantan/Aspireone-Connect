@@ -11,9 +11,9 @@ const denied=(fn:()=>any)=>assert.throws(fn,/Access denied/);
 test('production starts with six empty boards and no invented users',()=>{const s=initial();assert.equal(s.boards.length,6);assert.equal(s.users.length,0);assert.equal(s.tasks.length,0)});
 test('sent invitations create stable assignable people without granting access before acceptance',()=>{
  const {s,admin,manager,editor,t,b}=setup();const invite=mutate(s,admin,{op:'company.invite',email:'pending@example.test',name:'Pending Person',mobile:'123',abbreviation:'PP'});
- mutate(s,manager,{op:'member',board:b,email:invite.email,role:'Edit'});
  assert.equal(provisionInvitedPeople(s),false);invite.delivery='failed';assert.equal(provisionInvitedPeople(s),false);
  invite.delivery='sent';assert.equal(provisionInvitedPeople(s),true);const person=s.users.find(u=>u.email===invite.email)!;assert.equal(person.name,'Pending Person');assert.equal(person.mobile,'123');assert.equal(person.abbreviation,'PP');assert.equal(provisionInvitedPeople(s),false);
+ mutate(s,manager,{op:'member',board:b,email:invite.email,role:'Edit'});
  update(s,editor,t,{assignee:person.id,team:[person.id]});const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Assigned child'});update(s,editor,child,{assignee:person.id,team:[person.id]});
  assert.equal(role(s,person,b),0);assert.equal(view(s,person).tasks.length,0);denied(()=>update(s,person,t,{remark:'Premature access'}));assert.ok(view(s,editor).users.some((u:any)=>u.id===person.id));assert.equal(view(s,editor).users.find((u:any)=>u.id===person.id).mobile,undefined);
  mutate(s,person,{op:'invite.accept',token:invite.token});assert.equal(role(s,person,b),2);assert.equal(t.assignee,person.id);assert.deepEqual(child.team,[person.id]);assert.equal(s.users.filter(u=>u.email===invite.email).length,1);assert.equal(s.members.filter(m=>m.board===b&&m.user===person.id).length,1);
@@ -23,6 +23,19 @@ test('sent invite backfill supports adding later board membership and cancellati
  assert.throws(()=>update(s,editor,t,{assignee:person.id}),/board member/);mutate(s,manager,{op:'member',board:b,email:i.email,role:'View'});update(s,editor,t,{assignee:person.id});
  mutate(s,admin,{op:'invite.remove',id:i.id});assert.equal(s.members.some(m=>m.user===person.id),false);assert.throws(()=>update(s,editor,t,{team:[person.id]}),/board member|supporting/);assert.equal(role(s,person,b),0);
  const replacement=mutate(s,admin,{op:'company.invite',email:person.email,name:'Later'});replacement.delivery='sent';provisionInvitedPeople(s);assert.equal(s.users.filter(u=>u.email===person.email).length,1);
+});
+test('email-only board membership is repaired even when delivery status is stale',()=>{
+ const {s,admin,manager,editor,t,b}=setup();const i=mutate(s,admin,{op:'company.invite',email:'missing@example.test',name:'Missing Member'});i.delivery='queued';
+ mutate(s,manager,{op:'member',board:b,email:i.email,role:'Edit'});const person=s.users.find(u=>u.email===i.email)!;assert.ok(person);assert.ok(view(s,editor).members.some((m:any)=>m.user===person.id));assert.ok(view(s,editor).users.some((u:any)=>u.id===person.id));
+ update(s,editor,t,{assignee:person.id,team:[person.id]});const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Child'});update(s,editor,child,{assignee:person.id,team:[person.id]});assert.equal(role(s,person,b),0);
+ const membership=s.members.find(m=>m.user===person.id)!;delete membership.user;i.delivery='failed';assert.equal(provisionInvitedPeople(s),true);assert.equal(membership.user,person.id);assert.equal(provisionInvitedPeople(s),false);
+});
+test('empty groups can be renamed and deleted with confirmation while nonempty groups are protected',()=>{
+ const {s,editor,viewer,b,t}=setup();const g=mutate(s,editor,{op:'group.create',board:b,name:'Original',color:'#123456'});const order=g.order;
+ mutate(s,editor,{op:'group.update',board:b,id:g.id,version:g.version,name:'Renamed'});assert.equal(g.name,'Renamed');assert.equal(g.color,'#123456');assert.equal(g.order,order);
+ denied(()=>mutate(s,viewer,{op:'group.delete',board:b,id:g.id,version:g.version,confirm:true}));assert.throws(()=>mutate(s,editor,{op:'group.delete',board:b,id:g.id,version:g.version}),/Confirm/);
+ const task=mutate(s,editor,{op:'task.create',board:b,group:g.id,title:'Hidden task'});task.archived=true;assert.throws(()=>mutate(s,editor,{op:'group.delete',board:b,id:g.id,version:g.version,confirm:true}),/including archived/);
+ mutate(s,editor,{op:'task.delete',board:b,id:task.id,version:task.version,confirm:true});mutate(s,editor,{op:'group.delete',board:b,id:g.id,version:g.version,confirm:true});assert.ok(!s.groups.includes(g));assert.ok(s.tasks.includes(t));
 });
 test('invitation backfill does not reactivate deleted or disabled people',()=>{
  const {s,admin}=setup();const i=mutate(s,admin,{op:'company.invite',email:'disabled@example.test',name:'Disabled'});i.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===i.email)!;person.active=false;person.deleted=true;
@@ -58,7 +71,7 @@ test('one company invitation activates multiple board assignments and preserves 
  assert.throws(()=>mutate(s,admin,{op:'company.invite',email:email.toUpperCase(),name:'Duplicate'}),/already has an invitation/);
  mutate(s,manager,{op:'member',board:b,email,role:'Edit'});mutate(s,admin,{op:'member',board:'board-0',email,role:'View'});mutate(s,admin,{op:'member',board:'board-2',email,role:'Manage'});
  mutate(s,admin,{op:'member',board:'board-2',email,role:null});assert.equal(i.state,'pending');assert.equal(s.invites.filter(x=>x.email===email).length,1);
- const person={id:'pending-person',email,name:'Google name',active:true,onboarding:true};s.users.push(person);assert.equal(role(s,person,b),0);
+ const person=s.users.find(u=>u.email===email)!;assert.equal(role(s,person,b),0);
  mutate(s,person,{op:'invite.accept',token:i.token});assert.equal(role(s,person,b),2);assert.equal(role(s,person,'board-0'),1);assert.equal(role(s,person,'board-2'),0);
 });
 test('cancelling company invitation removes pending assignments and keeps private contacts out of manager snapshots',()=>{

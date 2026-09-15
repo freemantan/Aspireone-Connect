@@ -1,10 +1,12 @@
 import {State,uid} from './model';
 
-// Keep a stable user identity for sent invitations, without granting sign-in or board access.
+// Board membership can be prepared before email delivery reporting catches up.
+// Pending identities remain unable to access boards until invitation acceptance.
 export function provisionInvitedPeople(s:State){
  let changed=false;
  for(const invite of s.invites){
-  if(invite.state!=='pending'||(invite.delivery!==undefined&&invite.delivery!=='sent'))continue;
+  const hasMembership=s.members.some(m=>m.pendingEmail===invite.email);
+  if(invite.state!=='pending'||(!hasMembership&&invite.delivery!==undefined&&invite.delivery!=='sent'))continue;
   let person=s.users.find(u=>u.email===invite.email);
   if(!person){
    const name=invite.name||invite.email;

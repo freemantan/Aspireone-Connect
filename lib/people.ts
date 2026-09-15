@@ -27,6 +27,14 @@ function activateAssignments(s:State,u:Row){
 }
 export function workspaceMutate(s:State,u:Row,p:any):any{
  check(u.active);
+ if(p.op==='group.delete'){
+  const group=find(s,'groups',p.id);check(group.board===p.board);check(role(s,u,group.board)>=2);
+  check(!find(s,'boards',group.board).archived,'Restore the board first',400);
+  check(group.version===p.version,'This group changed. Refresh before continuing.',409);
+  check(p.confirm===true,'Confirm group deletion first',400);
+  check(!s.tasks.some(t=>t.group===group.id),'Move or delete all tasks, including archived tasks, before deleting this group.',400);
+  s.groups=s.groups.filter(g=>g.id!==group.id);audit(s,u,group.board,group.id,'Group deleted',{name:group.name},null);return;
+ }
  if(['task.move','task.delete','task.restore'].includes(p.op))return taskOperation(s,u,p);
  if(p.op==='settings'&&Array.isArray(p.columns)&&p.hidden===undefined){
   const board=find(s,'boards',p.board);p={...p,hidden:[...(board.hidden||[]),...p.columns.filter((c:Row)=>!board.columns.some((old:Row)=>old.id===c.id)).map((c:Row)=>c.id)]};
