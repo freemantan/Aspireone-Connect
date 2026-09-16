@@ -24,3 +24,4 @@
 .task-row-actions{display:flex;gap:8px;white-space:nowrap}
 .table-scroll .compact-person-picker{min-width:0;width:auto;max-width:9rem}
 .table-scroll .chat-icon small{font-size:18px;font-weight:700;line-height:1.2;min-width:1.2em}
+.task-column-link{display:inline-block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;text-decoration:underline;color:#226c72}
