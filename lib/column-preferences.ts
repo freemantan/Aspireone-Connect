@@ -1,4 +1,4 @@
-export const standardColumns=['assignee','team','priority','start','due'];
+export const standardColumns=['assignee','team','budget','priority','start','due','remark','links'];
 export function columnPreferences(board:any,saved:any):string[]{
  const ids=(board?.columns||[]).filter((c:any)=>!c.archived).map((c:any)=>c.id);
  if(!saved)return board?.hidden||[];

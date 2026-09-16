@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initial,mutate,role,view,runRecurrences,completed,overdue,archived,today,addDays,State} from '../lib/model';
 import {demo} from '../lib/demo';
-import {updateBoardNames} from '../lib/workspace-updates';
+import {updateBoardNames,updateCommonColumns} from '../lib/workspace-updates';
 import {columnPreferences,standardColumns} from '../lib/column-preferences';
 import {provisionInvitedPeople} from '../lib/invited-people';
 import {isMp4} from '../lib/video-attachment';
@@ -13,6 +13,15 @@ test('MP4 attachment validation accepts a file-type box and rejects renamed or t
 function setup(){const s=initial();demo(s);const admin=s.users[0],viewer=s.users[1],editor=s.users[2],manager=s.users[3],t=s.tasks[0];return {s,admin,viewer,editor,manager,t,b:t.board,g:t.group};}
 function update(s:any,u:any,t:any,changes:any,extra={}){return mutate(s,u,{op:'task.update',board:t.board,id:t.id,version:t.version,changes,...extra});}
 const denied=(fn:()=>any)=>assert.throws(fn,/Access denied/);
+test('Budget is a standard numeric field on tasks and subtasks',()=>{
+ const {s,editor,viewer,t,b}=setup();update(s,editor,t,{budget:123.45});assert.equal(t.budget,123.45);denied(()=>update(s,viewer,t,{budget:1}));assert.throws(()=>update(s,editor,t,{budget:-1}),/Budget/);
+ const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Budget child'});assert.equal(child.budget,null);update(s,editor,child,{budget:0});assert.equal(child.budget,0);update(s,editor,t,{budget:null});assert.equal(t.budget,null);
+});
+test('Marketing Custom Links column is removed once while preserving its URLs in standard Links',()=>{
+ const {s}=setup();const board=s.boards.find(b=>b.id==='board-1')!,task=s.tasks.find(t=>t.board===board.id)!;
+ board.columns.push({id:'old-link',name:'Custom Links',type:'link'});task.custom={'old-link':{label:'Campaign',url:'https://example.com/campaign'}};
+ assert.equal(updateCommonColumns(s),true);assert.ok(!board.columns.some((c:any)=>c.id==='old-link'));assert.ok(task.links.some((l:any)=>l.label==='Campaign'));assert.equal(task.custom['old-link'],undefined);assert.equal(updateCommonColumns(s),false);
+});
 test('columns can grow, Remark and Links can be hidden, and confirmed deletion removes stored values',()=>{
  const {s,manager,editor,t,b}=setup();const board=s.boards.find(x=>x.id===b)!;
  const columns=Array.from({length:150},(_,i)=>({id:'many-'+i,name:'Column '+i,type:i===0?'link':'text',options:[],archived:false}));
@@ -148,7 +157,7 @@ test('new shared columns persist and default unchecked while the five standard c
  const {s,manager,viewer,b}=setup();const board=s.boards.find(x=>x.id===b)!;const column={id:'shared-col',name:'Tracking',type:'text',archived:false};
  mutate(s,manager,{op:'settings',board:b,version:board.version,columns:[...board.columns,column]});assert.ok(board.hidden.includes(column.id));
  assert.ok(view(s,viewer).boards.find((x:any)=>x.id===b).columns.some((c:any)=>c.id===column.id));
- assert.equal(standardColumns.length,5);for(const id of standardColumns)assert.ok(!columnPreferences(board,null).includes(id));
+ assert.equal(standardColumns.length,8);for(const id of standardColumns)assert.ok(!columnPreferences(board,null).includes(id));
  assert.ok(columnPreferences(board,{hidden:[],known:[]}).includes(column.id));assert.ok(!columnPreferences(board,{hidden:[],known:[column.id]}).includes(column.id));
  mutate(s,manager,{op:'settings',board:b,version:board.version,hidden:[]});assert.ok(!board.hidden.includes(column.id));
 });
