@@ -13,6 +13,12 @@ test('MP4 attachment validation accepts a file-type box and rejects renamed or t
 function setup(){const s=initial();demo(s);const admin=s.users[0],viewer=s.users[1],editor=s.users[2],manager=s.users[3],t=s.tasks[0];return {s,admin,viewer,editor,manager,t,b:t.board,g:t.group};}
 function update(s:any,u:any,t:any,changes:any,extra={}){return mutate(s,u,{op:'task.update',board:t.board,id:t.id,version:t.version,changes,...extra});}
 const denied=(fn:()=>any)=>assert.throws(fn,/Access denied/);
+test('Marketing cleanup also removes duplicate Links after the earlier cleanup has run',()=>{
+ const {s}=setup();const board=s.boards.find(b=>b.id==='board-1')!,other=s.boards.find(b=>b.id==='board-2')!;board.commonColumnsUpdated=true;
+ board.columns.push({id:'duplicate-links',name:'Links',type:'link'},{id:'keep',name:'Campaign URL',type:'link'});other.columns.push({id:'other-links',name:'Links',type:'link'});
+ const parent=s.tasks.find(t=>t.board===board.id&&!t.parent)!,child=mutate(s,s.users[0],{op:'task.create',board:board.id,parent:parent.id,title:'Links child'});child.custom={'duplicate-links':{label:'Campaign video',url:'https://example.com/video'}};
+ assert.equal(updateCommonColumns(s),true);assert.ok(!board.columns.some((c:any)=>c.id==='duplicate-links'));assert.ok(board.columns.some((c:any)=>c.id==='keep'));assert.ok(other.columns.some((c:any)=>c.id==='other-links'));assert.ok(child.links.some((l:any)=>l.label==='Campaign video'));assert.equal(child.custom['duplicate-links'],undefined);assert.equal(updateCommonColumns(s),false);
+});
 test('Budget is a standard numeric field on tasks and subtasks',()=>{
  const {s,editor,viewer,t,b}=setup();update(s,editor,t,{budget:123.45});assert.equal(t.budget,123.45);denied(()=>update(s,viewer,t,{budget:1}));assert.throws(()=>update(s,editor,t,{budget:-1}),/Budget/);
  const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Budget child'});assert.equal(child.budget,null);update(s,editor,child,{budget:0});assert.equal(child.budget,0);update(s,editor,t,{budget:null});assert.equal(t.budget,null);
