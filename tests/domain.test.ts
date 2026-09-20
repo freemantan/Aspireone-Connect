@@ -1,4 +1,7 @@
 import test from 'node:test';
+import {columnOrder,moveColumn} from '../lib/column-order';
+import {taskEmail} from '../lib/task-email';
+
 import assert from 'node:assert/strict';
 import {initial,mutate,role,view,runRecurrences,completed,overdue,archived,today,addDays,State} from '../lib/model';
 import {demo} from '../lib/demo';
@@ -201,4 +204,17 @@ test('deletion requires confirmation, blocks parents with subtasks and denies vi
 });
 test('archived tasks can be restored without rewriting other task fields',()=>{
  const {s,manager,viewer,t,b}=setup();t.archived=true;const due=t.due;denied(()=>mutate(s,viewer,{op:'task.restore',board:b,id:t.id,version:t.version}));mutate(s,manager,{op:'task.restore',board:b,id:t.id,version:t.version});assert.equal(t.archived,false);assert.equal(t.due,due);
+});
+test('board column order persists for standard and custom columns and rejects invalid orders',()=>{
+ const {s,manager,viewer,b}=setup();const board=s.boards.find(x=>x.id===b)!;board.columns.push({id:'extra',name:'Extra',type:'text'});const order=moveColumn(columnOrder(board),'extra','assignee');
+ mutate(s,manager,{op:'settings',board:b,version:board.version,columnOrder:order});assert.deepEqual(columnOrder(board),order);assert.ok(order.indexOf('extra')<order.indexOf('assignee'));
+ denied(()=>mutate(s,viewer,{op:'settings',board:b,version:board.version,columnOrder:order}));assert.throws(()=>mutate(s,manager,{op:'settings',board:b,version:board.version,columnOrder:['bad']}),/Invalid column order/);
+ board.columns=[];assert.ok(!columnOrder(board).includes('extra'));board.columns.push({id:'new',name:'New',type:'text'});assert.equal(columnOrder(board).at(-1),'new');
+});
+test('task emails require editing access and only include assigned members with task-specific links',()=>{
+ const {s,editor,viewer,t,b}=setup();update(s,editor,t,{assignee:editor.id,team:[viewer.id]});const p={id:t.id,version:t.version,recipients:[editor.id,viewer.id,viewer.id]};
+ const emails=taskEmail(s,editor,p,'https://connect.aspireone.ai');assert.equal(emails.length,2);assert.ok(emails[0].text.includes('task='+t.id));assert.deepEqual(emails[0].to,[editor.email]);
+ denied(()=>taskEmail(s,viewer,p,'https://connect.aspireone.ai'));assert.throws(()=>taskEmail(s,editor,{...p,recipients:['not-assigned']},'https://connect.aspireone.ai'),/Select assigned/);assert.throws(()=>taskEmail(s,editor,{...p,version:0},'https://connect.aspireone.ai'),/latest task/);
+ const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Email subtask'});update(s,editor,child,{team:[viewer.id]});assert.match(taskEmail(s,editor,{id:child.id,version:child.version,recipients:[viewer.id]},'https://connect.aspireone.ai')[0].subject,/Subtask invitation/);
+ t.archived=true;assert.throws(()=>taskEmail(s,editor,p,'https://connect.aspireone.ai'),/Restore/);
 });
