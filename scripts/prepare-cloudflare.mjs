@@ -5,6 +5,9 @@ const path = 'dist/server/wrangler.json';
 const config = JSON.parse(readFileSync(path, 'utf8'));
 config.name = 'aspireone-connect';
 config.workers_dev = true;
+// Preserve dashboard-managed variables across Git-triggered deployments.
+// API credentials must still be configured as Worker Secrets.
+config.keep_vars = true;
 delete config.routes;
 delete config.d1_databases;
 delete config.r2_buckets;
