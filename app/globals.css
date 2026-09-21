@@ -25,3 +25,11 @@
 .table-scroll .compact-person-picker{min-width:0;width:auto;max-width:9rem}
 .table-scroll .chat-icon small{font-size:18px;font-weight:700;line-height:1.2;min-width:1.2em}
 .task-column-link{display:inline-block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;text-decoration:underline;color:#226c72}
+
+.table-scroll .resizable-board-table th{position:relative;padding-right:16px}
+.table-scroll .resizable-board-table th.task-title{position:sticky}
+.table-scroll .resizable-board-table .task-title,.table-scroll .resizable-board-table .remark{min-width:0;max-width:none}
+.table-scroll .resizable-board-table td:not([colspan]){overflow:hidden}
+.table-scroll .resizable-board-table .picker,.table-scroll .resizable-board-table input[type=date]{min-width:0;max-width:100%}
+.column-resizer{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:col-resize;touch-action:none;user-select:none;z-index:5}
+.column-resizer:hover,.column-resizer:focus-visible{background:#287d8355;outline:2px solid #287d83;outline-offset:-2px}
