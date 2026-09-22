@@ -270,7 +270,7 @@ test('Directors always read article boards and every article includes selected r
  s.files.push({id:'image',board:board.id,user:admin.id,articleContent:true,type:'image/png',name:'Chart.png'},{id:'video',board:board.id,user:admin.id,articleContent:true,type:'video/mp4',name:'Review.mp4'});
  const p={op:'article.save',board:board.id,title:'Report',description:'',publishDate:'2026-09-23',tags:[],audience:['Finance'],content:'image',attachments:['image','video']};
  const a=mutate(s,admin,p);assert.deepEqual(a.audience,['Director','Finance']);assert.equal(view(s,viewer).articles.length,1);assert.equal(role(s,viewer,board.id),1);assert.equal(a.attachmentInfo[1].name,'Review.mp4');
- assert.throws(()=>mutate(s,admin,{...p,audience:'all'}));viewer.roles=[];assert.equal(view(s,viewer).articles.length,0);
+ viewer.roles=[];assert.equal(view(s,viewer).articles.length,0);const everyone=mutate(s,admin,{...p,audience:'all'});assert.equal(everyone.audience,'all');assert.equal(view(s,viewer).articles.length,0);s.members.push({id:'all-reader',board:board.id,user:viewer.id,role:'View'});assert.deepEqual(view(s,viewer).articles.map((a:any)=>a.id),[everyone.id]);
 });
 test('article ordering is manager-only and stays within the pinned or ordinary section',()=>{
  const {s,admin,editor}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;s.members.push({id:'order-editor',board:board.id,user:editor.id,role:'Edit'});
