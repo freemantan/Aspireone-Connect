@@ -254,8 +254,21 @@ test('PDF articles retain their type and reject another author’s uploaded cont
  const {s,admin,editor}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;
  s.members.push({id:'pdf-member',board:board.id,user:editor.id,role:'Edit'});
  s.files.push({id:'pdf',board:board.id,user:editor.id,articleContent:true,type:'application/pdf'});
- const p={op:'article.save',board:board.id,title:'Report',description:'',publishDate:'2026-09-23',tags:[],audience:'all',content:'pdf'};
+ const p={op:'article.save',board:board.id,title:'Report',description:'',publishDate:'2026-09-23',tags:[],audience:['Finance'],content:'pdf'};
  assert.throws(()=>mutate(s,admin,p));
  const a=mutate(s,editor,p);assert.equal(a.contentType,'application/pdf');assert.equal(a.author,editor.id);
  assert.throws(()=>mutate(s,editor,{...p,id:a.id,version:a.version,tags:['a','b','c','d']}));
+});
+test('invitation and person details carry admin-selected roles through acceptance',()=>{
+ const {s,admin,viewer}=setup();const i=mutate(s,admin,{op:'company.invite',name:'New colleague',email:'roles@example.test',roles:['Senior Manager','Marketing']});i.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===i.email)!;
+ assert.deepEqual(person.roles,['Senior Manager','Marketing']);mutate(s,person,{op:'invite.accept',token:i.token});assert.deepEqual(person.roles,['Senior Manager','Marketing']);
+ mutate(s,admin,{op:'person.edit',kind:'users',id:person.id,name:person.name,roles:['Director']});assert.deepEqual(person.roles,['Director']);assert.deepEqual(i.roles,['Director']);
+ assert.throws(()=>mutate(s,viewer,{op:'person.edit',kind:'users',id:viewer.id,name:viewer.name,roles:['Director']}));
+});
+test('Directors always read article boards and every article includes selected roles and attachment metadata',()=>{
+ const {s,admin,viewer}=setup();view(s,admin);viewer.roles=['Director'];s.members=s.members.filter(m=>m.user!==viewer.id);const board=s.boards.find(b=>b.id==='knowledge-strategies')!;
+ s.files.push({id:'image',board:board.id,user:admin.id,articleContent:true,type:'image/png',name:'Chart.png'},{id:'video',board:board.id,user:admin.id,articleContent:true,type:'video/mp4',name:'Review.mp4'});
+ const p={op:'article.save',board:board.id,title:'Report',description:'',publishDate:'2026-09-23',tags:[],audience:['Finance'],content:'image',attachments:['image','video']};
+ const a=mutate(s,admin,p);assert.deepEqual(a.audience,['Director','Finance']);assert.equal(view(s,viewer).articles.length,1);assert.equal(role(s,viewer,board.id),1);assert.equal(a.attachmentInfo[1].name,'Review.mp4');
+ assert.throws(()=>mutate(s,admin,{...p,audience:'all'}));viewer.roles=[];assert.equal(view(s,viewer).articles.length,0);
 });

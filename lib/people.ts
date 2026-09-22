@@ -76,9 +76,10 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  if(p.op==='person.edit'){
   check(u.admin);check(['users','invites'].includes(p.kind),'Invalid person type',400);
   const person=find(s,p.kind,p.id);check(!person.deleted,'User has been deleted',400);
+  if(p.roles!==undefined)check(Array.isArray(p.roles)&&p.roles.every((r:string)=>businessRoles.includes(r)),'Invalid roles',400);
   const name=typeof p.name==='string'?p.name.trim():'',mobile=typeof p.mobile==='string'?p.mobile.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);check(mobile.length<=40,'Mobile number is too long',400);
-  for(const row of [...s.users,...s.invites].filter(x=>x.email===person.email)){row.name=name;row.mobile=mobile;if(p.abbreviation!==undefined){check(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12,'Abbr Name must be up to 12 characters',400);row.abbreviation=p.abbreviation.trim();}}
+  for(const row of [...s.users,...s.invites].filter(x=>x.email===person.email)){row.name=name;row.mobile=mobile;if(p.roles!==undefined)row.roles=[...new Set(p.roles)];if(p.abbreviation!==undefined){check(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12,'Abbr Name must be up to 12 characters',400);row.abbreviation=p.abbreviation.trim();}}
   audit(s,u,'',person.id,'Person details updated',null,null);return;
  }
  if(p.op==='invite.remove'){
@@ -98,10 +99,11 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  if(p.op==='company.invite'){
   check(u.admin);const email=emailOf(p.email),name=typeof p.name==='string'?p.name.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);
+  check(p.roles===undefined||Array.isArray(p.roles)&&p.roles.every((r:string)=>businessRoles.includes(r)),'Invalid roles',400);
   const mobile=typeof p.mobile==='string'?p.mobile.trim():'';check(mobile.length<=40,'Mobile number is too long',400);
   check(!s.users.some(x=>x.email===email&&(!x.onboarding||!x.active||x.deleted)),'This person already has an account. Add them from Board Members.',400);
   check(!pending(s,email),'This person already has an invitation. Use Resend in Administration.',400);
-  check(p.abbreviation===undefined||(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12),'Abbr Name must be up to 12 characters',400);const i={id:uid(),email,name,mobile,abbreviation:p.abbreviation?.trim()||'',token:uid()+uid(),expires:new Date(Date.now()+7*86400000).toISOString(),state:'pending',delivery:'queued',inviter:u.id,at:now()};
+  check(p.abbreviation===undefined||(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12),'Abbr Name must be up to 12 characters',400);const i={id:uid(),email,name,mobile,roles:p.roles||[],abbreviation:p.abbreviation?.trim()||'',token:uid()+uid(),expires:new Date(Date.now()+7*86400000).toISOString(),state:'pending',delivery:'queued',inviter:u.id,at:now()};
   s.invites.push(i);audit(s,u,'',i.id,'Company invitation created',null,email);return i;
  }
  if(p.op==='invite.update'){
@@ -114,7 +116,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  if(p.op==='invite.accept'){
   const i=s.invites.find(i=>i.token===p.token);check(i&&i.email===u.email&&i.state==='pending'&&i.expires>now(),'Invitation unavailable or email does not match',403);
   if(i.board){const board=legacyMutate(s,u,p);u.onboarding=false;activateAssignments(s,u);return board;}
-  i.state='accepted';u.onboarding=false;u.name=i.name||u.name;u.mobile=i.mobile||'';if(i.abbreviation)u.abbreviation=i.abbreviation;activateAssignments(s,u);audit(s,u,'',i.id,'Company invitation accepted',null,u.email);
+  i.state='accepted';u.onboarding=false;u.name=i.name||u.name;u.mobile=i.mobile||'';if(i.roles)u.roles=i.roles;if(i.abbreviation)u.abbreviation=i.abbreviation;activateAssignments(s,u);audit(s,u,'',i.id,'Company invitation accepted',null,u.email);
   return s.members.find(m=>m.user===u.id&&!find(s,'boards',m.board).archived)?.board||'';
  }
  if(p.op==='member'){

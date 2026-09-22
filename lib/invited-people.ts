@@ -10,7 +10,7 @@ export function provisionInvitedPeople(s:State){
   let person=s.users.find(u=>u.email===invite.email);
   if(!person){
    const name=invite.name||invite.email;
-   person={id:uid(),email:invite.email,name,mobile:invite.mobile||'',abbreviation:invite.abbreviation||name.split(' ').map((x:string)=>x[0]).join('').slice(0,4),active:true,admin:false,onboarding:true};
+   person={id:uid(),email:invite.email,name,mobile:invite.mobile||'',abbreviation:invite.abbreviation||name.split(' ').map((x:string)=>x[0]).join('').slice(0,4),roles:invite.roles||[],active:true,admin:false,onboarding:true};
    s.users.push(person);changed=true;
   }
   if(!person.active||person.deleted)continue;
