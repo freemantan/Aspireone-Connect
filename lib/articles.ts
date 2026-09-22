@@ -1,3 +1,4 @@
+import {compareArticles} from './article-order';
 import {State,Row,check,find,role,uid,now,audit} from './model';
 import {businessRoles} from './business-roles';
 export function canReadArticle(s:State,u:Row,a:Row){return !a.deleted&&role(s,u,a.board)>0&&(role(s,u,a.board)>=3||(u.roles||[]).includes('Director')||a.author===u.id||a.audience==='all'||(a.audience||[]).some((r:string)=>(u.roles||[]).includes(r)));}
@@ -6,6 +7,12 @@ export function articleOperation(s:State,u:Row,p:any){
  const level=role(s,u,board.id);check(level>=2);
  const a=p.id?find(s,'articles',p.id):null;
  if(a){check(a.board===board.id&&canReadArticle(s,u,a),'Article unavailable',404);check(a.version===p.version,'Article changed. Reopen it before saving.',409);}
+ if(p.op==='article.move'){
+  check(a&&level>=3,'Manager access required');check(['up','down'].includes(p.direction),'Invalid direction',400);
+  const rows=s.articles.filter(x=>x.board===board.id&&!x.deleted&&!!x.pinned===!!a.pinned).sort(compareArticles),index=rows.findIndex(x=>x.id===a.id),target=index+(p.direction==='up'?-1:1);
+  check(target>=0&&target<rows.length,'Article is already at the end of this section',400);
+  [rows[index],rows[target]]=[rows[target],rows[index]];rows.forEach((x,i)=>{if(x.order!==i){x.order=i;x.version++;}});audit(s,u,board.id,a.id,'Article moved',null,p.direction);return;
+ }
  if(p.op==='article.delete'){check(a&&(a.author===u.id||level>=3));check(p.confirm===true,'Confirm deletion',400);a.deleted=true;a.version++;audit(s,u,board.id,a.id,'Article deleted',null,null);return;}
  if(p.op==='article.pin'){check(a&&level>=3,'Manager access required');a.pinned=!!p.pinned;a.version++;return a;}
  check(p.op==='article.save','Unknown article action',400);check(!a||a.author===u.id,'Only the author can edit this article');

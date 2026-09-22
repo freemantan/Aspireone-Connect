@@ -272,3 +272,11 @@ test('Directors always read article boards and every article includes selected r
  const a=mutate(s,admin,p);assert.deepEqual(a.audience,['Director','Finance']);assert.equal(view(s,viewer).articles.length,1);assert.equal(role(s,viewer,board.id),1);assert.equal(a.attachmentInfo[1].name,'Review.mp4');
  assert.throws(()=>mutate(s,admin,{...p,audience:'all'}));viewer.roles=[];assert.equal(view(s,viewer).articles.length,0);
 });
+test('article ordering is manager-only and stays within the pinned or ordinary section',()=>{
+ const {s,admin,editor}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;s.members.push({id:'order-editor',board:board.id,user:editor.id,role:'Edit'});
+ const base={board:board.id,author:admin.id,publishDate:'2026-09-23',createdAt:'2026-09-23T00:00:00Z',version:1,audience:['Director']};s.articles.push({...base,id:'first',order:0},{...base,id:'second',order:1},{...base,id:'pinned',pinned:true,order:0});
+ assert.throws(()=>mutate(s,editor,{op:'article.move',board:board.id,id:'second',version:1,direction:'up'}));
+ mutate(s,admin,{op:'article.move',board:board.id,id:'second',version:1,direction:'up'});assert.equal(s.articles.find(a=>a.id==='second')!.order,0);assert.equal(s.articles.find(a=>a.id==='first')!.order,1);assert.equal(s.articles.find(a=>a.id==='pinned')!.order,0);
+ assert.throws(()=>mutate(s,admin,{op:'article.move',board:board.id,id:'second',version:1,direction:'down'}));
+ assert.throws(()=>mutate(s,admin,{op:'article.move',board:board.id,id:'pinned',version:1,direction:'down'}));
+});
