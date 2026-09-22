@@ -80,7 +80,7 @@ test('invitation backfill does not reactivate deleted or disabled people',()=>{
  const {s,admin}=setup();const i=mutate(s,admin,{op:'company.invite',email:'disabled@example.test',name:'Disabled'});i.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===i.email)!;person.active=false;person.deleted=true;
  s.members.push({id:'legacy-pending',board:'board-1',pendingEmail:person.email,role:'Edit'});provisionInvitedPeople(s);assert.equal(person.active,false);assert.equal(s.members.find(m=>m.id==='legacy-pending')!.user,undefined);
 });
-test('independent board permissions and Directors privacy',()=>{const {s,viewer,manager,admin}=setup();assert.equal(role(s,viewer,'board-1'),1);assert.equal(role(s,viewer,'board-3'),2);assert.equal(role(s,viewer,'board-0'),0);assert.equal(view(s,viewer).boards.length,5);assert.equal(view(s,admin).boards.length,6);denied(()=>mutate(s,manager,{op:'board.create',name:'Forbidden'}));denied(()=>mutate(s,manager,{op:'user',id:manager.id,admin:true}));});
+test('independent board permissions and Directors privacy',()=>{const {s,viewer,manager,admin}=setup();assert.equal(role(s,viewer,'board-1'),1);assert.equal(role(s,viewer,'board-3'),2);assert.equal(role(s,viewer,'board-0'),0);assert.equal(view(s,viewer).boards.length,5);assert.equal(view(s,admin).boards.length,8);denied(()=>mutate(s,manager,{op:'board.create',name:'Forbidden'}));denied(()=>mutate(s,manager,{op:'user',id:manager.id,admin:true}));});
 test('Directors members inherit board permissions and are assignable everywhere without system administration',()=>{
  const {s,admin,editor,viewer,t,b}=setup();s.members=s.members.filter(m=>m.user!==editor.id);mutate(s,admin,{op:'member',board:'board-0',user:editor.id,role:'Edit'});
  assert.ok(s.boards.every(board=>role(s,editor,board.id)===2));assert.equal(view(s,editor).tasks.length,s.tasks.length);denied(()=>mutate(s,editor,{op:'user',id:viewer.id,admin:true}));
@@ -217,4 +217,45 @@ test('task emails require editing access and only include assigned members with 
  denied(()=>taskEmail(s,viewer,p,'https://connect.aspireone.ai'));assert.throws(()=>taskEmail(s,editor,{...p,recipients:['not-assigned']},'https://connect.aspireone.ai'),/Select assigned/);assert.throws(()=>taskEmail(s,editor,{...p,version:0},'https://connect.aspireone.ai'),/latest task/);
  const child=mutate(s,editor,{op:'task.create',board:b,parent:t.id,title:'Email subtask'});update(s,editor,child,{team:[viewer.id]});assert.match(taskEmail(s,editor,{id:child.id,version:child.version,recipients:[viewer.id]},'https://connect.aspireone.ai')[0].subject,/Subtask invitation/);
  t.archived=true;assert.throws(()=>taskEmail(s,editor,p,'https://connect.aspireone.ai'),/Restore/);
+});
+
+test('role board grants combine permissions, revoke immediately and never activate pending people',()=>{
+ const {s,admin,viewer}=setup();viewer.roles=['Finance','HR'];s.members=s.members.filter(m=>m.user!==viewer.id);const b=s.boards.find(b=>b.id==='board-5')!;
+ mutate(s,admin,{op:'board.roles',board:b.id,version:b.version,grants:{Finance:'View',HR:'Edit'}});
+ assert.equal(role(s,viewer,b.id),2);assert.ok(view(s,viewer).members.some((m:any)=>m.board===b.id&&m.user===viewer.id));
+ viewer.onboarding=true;assert.equal(role(s,viewer,b.id),0);viewer.onboarding=false;
+ mutate(s,admin,{op:'board.roles',board:b.id,version:b.version,grants:{}});assert.equal(role(s,viewer,b.id),0);
+ assert.throws(()=>mutate(s,viewer,{op:'board.roles',board:b.id,version:b.version,grants:{Finance:'Manage'}}));
+});
+test('article audience protects content metadata and discussions; author and manager permissions differ',()=>{
+ const {s,admin,viewer,editor,manager}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;
+ for(const [u,r] of [[viewer,'View'],[editor,'Edit'],[manager,'Manage']] as any[]){s.members.push({id:'a-'+u.id,board:board.id,user:u.id,role:r});}
+ s.files.push({id:'html',board:board.id,user:editor.id,articleContent:true});
+ const a=mutate(s,editor,{op:'article.save',board:board.id,title:'Finance report',description:'Quarterly',publishDate:'2026-09-23',tags:['Finance'],audience:['Finance'],content:'html'});
+ assert.equal(view(s,viewer).articles.length,0);assert.equal(view(s,manager).articles.length,1);
+ assert.throws(()=>mutate(s,viewer,{op:'chat.post',board:board.id,subject:a.id,body:'private'}));
+ viewer.roles=['Finance'];assert.equal(view(s,viewer).articles.length,1);mutate(s,viewer,{op:'chat.post',board:board.id,subject:a.id,body:'Question'});
+ viewer.roles=[];assert.equal(view(s,viewer).messages.filter((m:any)=>m.subject===a.id).length,0);
+ assert.throws(()=>mutate(s,editor,{op:'article.pin',board:board.id,id:a.id,version:a.version,pinned:true}));
+ mutate(s,manager,{op:'article.pin',board:board.id,id:a.id,version:a.version,pinned:true});assert.equal(a.pinned,true);
+ assert.throws(()=>mutate(s,manager,{op:'article.save',board:board.id,id:a.id,version:a.version,title:'Changed'}));
+ mutate(s,manager,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true});assert.equal(view(s,editor).articles.length,0);
+ assert.throws(()=>mutate(s,editor,{op:'chat.post',board:board.id,subject:a.id,body:'Deleted'}));
+});
+test('only system admins can assign roles; removal revokes role access',()=>{
+ const {s,viewer,admin}=setup();s.members=s.members.filter(m=>m.user!==viewer.id);const b=s.boards.find(b=>b.id==='board-5')!;
+ mutate(s,admin,{op:'board.roles',board:b.id,version:b.version,grants:{Manager:'Manage'}});
+ assert.throws(()=>mutate(s,viewer,{op:'roles.request',roles:['Manager','Finance']}));assert.equal(role(s,viewer,b.id),0);
+ assert.throws(()=>mutate(s,viewer,{op:'roles.assign',user:viewer.id,roles:['Manager']}));
+ mutate(s,admin,{op:'roles.assign',user:viewer.id,roles:['Manager','Finance']});assert.equal(role(s,viewer,b.id),3);assert.equal(viewer.requestedRoles,undefined);
+ mutate(s,admin,{op:'roles.assign',user:viewer.id,roles:[]});assert.equal(role(s,viewer,b.id),0);
+});
+test('PDF articles retain their type and reject another author’s uploaded content',()=>{
+ const {s,admin,editor}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;
+ s.members.push({id:'pdf-member',board:board.id,user:editor.id,role:'Edit'});
+ s.files.push({id:'pdf',board:board.id,user:editor.id,articleContent:true,type:'application/pdf'});
+ const p={op:'article.save',board:board.id,title:'Report',description:'',publishDate:'2026-09-23',tags:[],audience:'all',content:'pdf'};
+ assert.throws(()=>mutate(s,admin,p));
+ const a=mutate(s,editor,p);assert.equal(a.contentType,'application/pdf');assert.equal(a.author,editor.id);
+ assert.throws(()=>mutate(s,editor,{...p,id:a.id,version:a.version,tags:['a','b','c','d']}));
 });

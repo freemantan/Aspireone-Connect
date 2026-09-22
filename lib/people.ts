@@ -1,3 +1,5 @@
+import {businessRoles,ensureKnowledge} from './business-roles';
+import {canReadArticle,articleOperation} from './articles';
 import {State,Row,check,find,role,uid,now,audit,legacyMutate,legacyView,boardMemberships} from './model';
 import {taskOperation} from './task-operations';
 import {provisionInvitedPeople} from './invited-people';
@@ -11,6 +13,7 @@ export function directory(s:State){
 }
 export function workspaceView(s:State,u:Row){
  // The legacy projection still supports already-sent board invitation links.
+ ensureKnowledge(s);
  const v=legacyView({...s,invites:s.invites.filter(i=>i.board)},u);
  v.members=v.boards.flatMap((b:Row)=>boardMemberships(s,b.id));
  const managers=u.admin||s.boards.some(b=>role(s,u,b.id)>=3);
@@ -18,6 +21,12 @@ export function workspaceView(s:State,u:Row){
  v.invites=u.admin?s.invites.map(({token,...i})=>i):[];
  v.pendingInvitations.push(...s.invites.filter(i=>!i.board&&i.email===u.email&&i.state==='pending'&&i.expires>now()).map(i=>({id:i.id,token:i.token,boardName:'AspireOne Connect',role:'Company member',expires:i.expires})));
  if(!u.admin){v.users=v.users.map(({mobile,...person}:Row)=>person);if(v.me.id===u.id)v.me.mobile=u.mobile;}
+ v.businessRoles=businessRoles;
+ v.articles=(s.articles||[]).filter(a=>canReadArticle(s,u,a));
+ for(const a of v.articles){if(!v.users.some((x:Row)=>x.id===a.author)){const author=s.users.find(x=>x.id===a.author);if(author)v.users.push({id:author.id,name:author.name,abbreviation:author.abbreviation,active:author.active});}}
+ const articleIds=new Set((s.articles||[]).map(a=>a.id)),visible=new Set(v.articles.map((a:Row)=>a.id));
+ for(const key of ['messages','files','reads','notifications','activity'])v[key]=v[key].filter((r:Row)=>!articleIds.has(r.subject)||visible.has(r.subject));
+ v.files=v.files.filter((f:Row)=>!f.articleContent);
  return v;
 }
 function activateAssignments(s:State,u:Row){
@@ -27,7 +36,20 @@ function activateAssignments(s:State,u:Row){
  }
 }
 export function workspaceMutate(s:State,u:Row,p:any):any{
- check(u.active);
+ check(u.active);ensureKnowledge(s);
+ if(p.op?.startsWith('article.'))return articleOperation(s,u,p);
+ if(p.op==='roles.assign'){
+  check(u.admin);
+  check(Array.isArray(p.roles)&&p.roles.every((r:string)=>businessRoles.includes(r))&&new Set(p.roles).size===p.roles.length,'Choose valid roles',400);
+  const person=find(s,'users',p.user);check(!person.deleted,'User unavailable',404);
+  person.roles=p.roles;delete person.requestedRoles;
+  audit(s,u,'',person.id,p.op==='roles.assign'?'Roles assigned':'Roles requested',null,p.roles);return;
+ }
+ if(p.op==='board.roles'){
+  const b=find(s,'boards',p.board);check(role(s,u,b.id)>=3);check(!b.archived);check(p.version===b.version,'Board changed. Refresh and retry.',409);
+  check(p.grants&&typeof p.grants==='object'&&!Array.isArray(p.grants)&&Object.entries(p.grants).every(([r,a])=>businessRoles.includes(r)&&['View','Edit','Manage'].includes(String(a))),'Invalid role access',400);
+  b.roleAccess=p.grants;b.version++;audit(s,u,b.id,b.id,'Role access updated',null,p.grants);return b;
+ }
  if(p.op==='group.move'){
   const group=find(s,'groups',p.id),target=find(s,'groups',p.target);
   check(group.board===p.board&&target.board===group.board,'Move groups within the same board',400);check(role(s,u,group.board)>=2);

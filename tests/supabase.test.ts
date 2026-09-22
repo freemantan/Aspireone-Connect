@@ -1,3 +1,4 @@
+import {ensureKnowledge} from '../lib/business-roles';
 import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {login,callback,identity,hash} from '../lib/supabase-auth';
@@ -16,17 +17,17 @@ test('callback rejects absent browser cookie before making network requests',asy
  try{await assert.rejects(callback(new Request('https://portal.example/api/auth/callback?code=stolen')),/Login expired/);}finally{globalThis.fetch=realFetch;}
 });
 test('verified but uninvited Google account cannot obtain an app session',async()=>{
- const state=initial();let sessionCreated=false;
+ const state=initial();ensureKnowledge(state);let sessionCreated=false;
  globalThis.fetch=async(url)=>{const path=new URL(String(url)).pathname;if(path.endsWith('ao_oauth_take'))return Response.json({verifier:'v',invite:''});if(path.endsWith('/token'))return Response.json({access_token:'verified-jwt'});if(path.endsWith('/user'))return Response.json({id:'unknown',email:'unknown@example.test',email_confirmed_at:'2026-01-01',identities:[{provider:'google'}]});if(path.endsWith('ao_load'))return Response.json({state,revision:0});sessionCreated=true;throw new Error('Unexpected session write');};
  try{await assert.rejects(callback(new Request('https://portal.example/api/auth/callback?code=valid',{headers:{cookie:'ao_oauth=browser-state'}})),/Access unavailable/);assert.equal(sessionCreated,false);}finally{globalThis.fetch=realFetch;}
 });
 test('inactive user is rejected even with a valid stored session',async()=>{
- const state=initial();state.users.push({id:'u',active:false});
+ const state=initial();ensureKnowledge(state);state.users.push({id:'u',active:false});
  globalThis.fetch=async(url)=>Response.json(String(url).endsWith('ao_session_get')?'u':{state,revision:0});
  try{await assert.rejects(identity(new Request('https://portal.example/api/state',{headers:{cookie:'ao_session=token'}})),/Access unavailable/);}finally{globalThis.fetch=realFetch;}
 });
 test('a revision conflict retries against the latest state without losing another save',async()=>{
- let revision=0;const state=initial();let commits=0;
+ let revision=0;const state=initial();ensureKnowledge(state);let commits=0;
  globalThis.fetch=async(url,options)=>{if(String(url).endsWith('ao_load'))return Response.json({state,revision});const body=JSON.parse(String(options?.body));commits++;if(commits===1){state.groups.push({id:'other'});revision++;return Response.json(false);}assert.equal(body.expected_revision,1);assert.deepEqual(body.new_state.groups.map((g:any)=>g.id),['other','mine']);return Response.json(true);};
  try{await transact(s=>{s.groups.push({id:'mine'});});assert.equal(commits,2);}finally{globalThis.fetch=realFetch;}
 });
