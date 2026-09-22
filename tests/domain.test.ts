@@ -280,3 +280,11 @@ test('article ordering is manager-only and stays within the pinned or ordinary s
  assert.throws(()=>mutate(s,admin,{op:'article.move',board:board.id,id:'second',version:1,direction:'down'}));
  assert.throws(()=>mutate(s,admin,{op:'article.move',board:board.id,id:'pinned',version:1,direction:'down'}));
 });
+test('Managers can edit article metadata while preserving the author and attachments',()=>{
+ const {s,admin,editor,viewer}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;s.members.push({id:'edit-owner',board:board.id,user:editor.id,role:'Edit'});
+ s.files.push({id:'owned',board:board.id,user:editor.id,articleContent:true,type:'application/pdf'});
+ const p={op:'article.save',board:board.id,title:'Original',description:'Before',publishDate:'2026-09-23',tags:[],audience:['Finance'],content:'owned',attachments:['owned']};
+ const a=mutate(s,editor,p);mutate(s,admin,{...p,id:a.id,version:a.version,description:'After',audience:['Marketing']});assert.equal(a.description,'After');assert.equal(a.author,editor.id);assert.ok(a.audience.includes('Marketing'));
+ assert.throws(()=>mutate(s,viewer,{...p,id:a.id,version:a.version}));
+ s.files.push({id:'replacement',board:board.id,user:admin.id,articleContent:true});assert.throws(()=>mutate(s,admin,{...p,id:a.id,version:a.version,content:'replacement',attachments:['replacement']}));
+});
