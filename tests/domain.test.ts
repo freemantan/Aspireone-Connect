@@ -1,3 +1,4 @@
+import {articlePolicy} from '../lib/article-policy';
 import test from 'node:test';
 import {columnOrder,moveColumn} from '../lib/column-order';
 import {taskEmail} from '../lib/task-email';
@@ -287,4 +288,8 @@ test('Managers can edit article metadata while preserving the author and attachm
  const a=mutate(s,editor,p);mutate(s,admin,{...p,id:a.id,version:a.version,description:'After',audience:['Marketing']});assert.equal(a.description,'After');assert.equal(a.author,editor.id);assert.ok(a.audience.includes('Marketing'));
  assert.throws(()=>mutate(s,viewer,{...p,id:a.id,version:a.version}));
  s.files.push({id:'replacement',board:board.id,user:admin.id,articleContent:true});assert.throws(()=>mutate(s,admin,{...p,id:a.id,version:a.version,content:'replacement',attachments:['replacement']}));
+});
+
+test('HTML reports can run the pinned chart library while remaining isolated from portal data',()=>{
+ const policy=articlePolicy('text/html');assert.match(policy,/sandbox allow-scripts;/);assert.match(policy,/script-src 'unsafe-inline' https:\/\/cdnjs.cloudflare.com\/ajax\/libs\/Chart.js\/4.4.1\/chart.umd.min.js;/);assert.match(policy,/connect-src 'none'/);assert.ok(!policy.includes('allow-same-origin'));assert.ok(!articlePolicy('application/pdf').includes('allow-scripts'));
 });
