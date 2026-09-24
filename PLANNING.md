@@ -12,7 +12,7 @@ Native Connect module: `/?planning=prices`, `/?planning=commissions`, or `/?plan
 
 ## Access and publishing
 
-Active invited Connect users can read the last published prices, commissions and budgets. Director and Senior Manager business roles can change inputs in memory for analysis. Board permissions do not grant planning edit/save rights. Administrators can edit, save drafts and publish. Server authorization is checked for every save. Anonymous, inactive, deleted and onboarding users cannot access planning data.
+Active invited Connect users can read the last published prices, commissions and budgets. Director and Senior Manager business roles can change inputs in memory for analysis. Temporary price and commission edits persist between tabs; Who earns what uses the temporary price analysis. Reset restores the saved values. Board permissions do not grant planning edit/save rights. Administrators can edit, save drafts and publish. Server authorization is checked for every save. Anonymous, inactive, deleted and onboarding users cannot access planning data.
 
 Save draft updates working values only. Publish replaces the shared snapshot on the same record. There is no new-version/copy-version workflow. Existing publication remains visible while an administrator edits or saves another draft. Directors and Senior Managers cannot persist changes, even through direct API calls. Unpublished draft contents and metadata are not returned to nonadministrators. Concurrent saves use revisions and return a conflict without overwriting another administrator's changes.
 
