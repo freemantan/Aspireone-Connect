@@ -1,3 +1,4 @@
+import {planningAPI} from '@/lib/planning-api';
 import {articlePolicy} from '@/lib/article-policy';
 import {canReadArticle} from '@/lib/articles';
 import {bootstrap,load,transact,runtime} from '@/lib/supabase-store';
@@ -16,6 +17,7 @@ async function handler(r:Request){try{const path=new URL(r.url).pathname.replace
  if(path==='demo'&&r.method==='POST'){check(isDemo(r),'Demo login is disabled',404);await bootstrap();await transact(demo);const p:any=await r.json();const {state}=await load();const u=state.users.find(u=>u.id===p.user);check(u&&u.id.startsWith('demo-'),'Unknown demo account',400);return new Response('{}',{headers:{'Content-Type':'application/json','Set-Cookie':await session(r,u)}});}
  if(path==='scheduler'&&r.method==='POST'){check(e.CRON_SECRET&&r.headers.get('Authorization')==='Bearer '+e.CRON_SECRET);return json({generated:await transact(s=>runRecurrences(s))});}
  const user=await identity(r);
+ if(path==='planning')return json(await planningAPI(r,user));
  if(path==='auth/logout'&&r.method==='POST')return await logout(r);
  if(path==='state'&&r.method==='GET'){const {state,revision}=await load();return json({...view(state,find(state,'users',user.id)),revision,demo:isDemo(r)});}
  if(path==='article-content'&&r.method==='POST'){
