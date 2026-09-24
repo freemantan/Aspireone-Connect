@@ -173,7 +173,7 @@
     {
       "id": "A-11-9",
       "product": "A",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "Standard / Trial",
       "unit": "lesson",
       "amount": 11400,
@@ -187,7 +187,7 @@
     {
       "id": "A-11-10",
       "product": "A",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "Lite",
       "unit": "lesson",
       "amount": 10800,
@@ -201,7 +201,7 @@
     {
       "id": "A-11-11",
       "product": "A",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "Package (12+ lessons)",
       "unit": "lesson",
       "amount": 9700,
@@ -215,7 +215,7 @@
     {
       "id": "A-11-12",
       "product": "A",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "3+ subjects (siblings)",
       "unit": "lesson",
       "amount": 9100,
@@ -285,7 +285,7 @@
     {
       "id": "A-13-9",
       "product": "A",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "Standard / Trial",
       "unit": "lesson",
       "amount": 14600,
@@ -299,7 +299,7 @@
     {
       "id": "A-13-10",
       "product": "A",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "Lite",
       "unit": "lesson",
       "amount": 13900,
@@ -313,7 +313,7 @@
     {
       "id": "A-13-11",
       "product": "A",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "Package (12+ lessons)",
       "unit": "lesson",
       "amount": 12400,
@@ -327,7 +327,7 @@
     {
       "id": "A-13-12",
       "product": "A",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "3+ subjects (siblings)",
       "unit": "lesson",
       "amount": 11700,
@@ -336,6 +336,62 @@
       "units": 36,
       "previous": 11600,
       "source": "Price List 2026!L13",
+      "unavailable": false
+    },
+    {
+      "id": "A-14-9",
+      "product": "A",
+      "level": "IB / IP Y3–Y4",
+      "category": "Standard / Trial",
+      "unit": "lesson",
+      "amount": 13200,
+      "group": "Academic coaching",
+      "tier": 0,
+      "units": 1,
+      "previous": 13200,
+      "source": "Price List 2026!I14",
+      "unavailable": false
+    },
+    {
+      "id": "A-14-10",
+      "product": "A",
+      "level": "IB / IP Y3–Y4",
+      "category": "Lite",
+      "unit": "lesson",
+      "amount": 12500,
+      "group": "Academic coaching",
+      "tier": 1,
+      "units": 8,
+      "previous": 12200,
+      "source": "Price List 2026!J14",
+      "unavailable": false
+    },
+    {
+      "id": "A-14-11",
+      "product": "A",
+      "level": "IB / IP Y3–Y4",
+      "category": "Package (12+ lessons)",
+      "unit": "lesson",
+      "amount": 11200,
+      "group": "Academic coaching",
+      "tier": 2,
+      "units": 12,
+      "previous": 11200,
+      "source": "Price List 2026!K14",
+      "unavailable": false
+    },
+    {
+      "id": "A-14-12",
+      "product": "A",
+      "level": "IB / IP Y3–Y4",
+      "category": "3+ subjects (siblings)",
+      "unit": "lesson",
+      "amount": 10600,
+      "group": "Academic coaching",
+      "tier": 3,
+      "units": 36,
+      "previous": 10500,
+      "source": "Price List 2026!L14",
       "unavailable": false
     },
     {
@@ -509,7 +565,7 @@
     {
       "id": "B-23-9",
       "product": "B",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "Standard / Trial",
       "unit": "lesson",
       "amount": 8600,
@@ -523,7 +579,7 @@
     {
       "id": "B-23-10",
       "product": "B",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "Lite",
       "unit": "lesson",
       "amount": 8200,
@@ -537,7 +593,7 @@
     {
       "id": "B-23-11",
       "product": "B",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "Package (12+ lessons)",
       "unit": "lesson",
       "amount": 7600,
@@ -551,7 +607,7 @@
     {
       "id": "B-23-12",
       "product": "B",
-      "level": "Secondary 1–2",
+      "level": "Secondary 1–2 / IP·IB Y1–2",
       "category": "3+ subjects (siblings)",
       "unit": "lesson",
       "amount": 7300,
@@ -621,7 +677,7 @@
     {
       "id": "B-25-9",
       "product": "B",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "Standard / Trial",
       "unit": "lesson",
       "amount": 11000,
@@ -635,7 +691,7 @@
     {
       "id": "B-25-10",
       "product": "B",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "Lite",
       "unit": "lesson",
       "amount": 10500,
@@ -649,7 +705,7 @@
     {
       "id": "B-25-11",
       "product": "B",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "Package (12+ lessons)",
       "unit": "lesson",
       "amount": 9700,
@@ -663,7 +719,7 @@
     {
       "id": "B-25-12",
       "product": "B",
-      "level": "JC 1–2",
+      "level": "JC / IB / IP Y5–Y6",
       "category": "3+ subjects (siblings)",
       "unit": "lesson",
       "amount": 9400,
@@ -672,6 +728,62 @@
       "units": 36,
       "previous": null,
       "source": "Price List 2026!L25",
+      "unavailable": false
+    },
+    {
+      "id": "B-26-9",
+      "product": "B",
+      "level": "IB / IP Y3–Y4",
+      "category": "Standard / Trial",
+      "unit": "lesson",
+      "amount": 9900,
+      "group": "Physical tutorial",
+      "tier": 0,
+      "units": 1,
+      "previous": null,
+      "source": "Price List 2026!I26",
+      "unavailable": false
+    },
+    {
+      "id": "B-26-10",
+      "product": "B",
+      "level": "IB / IP Y3–Y4",
+      "category": "Lite",
+      "unit": "lesson",
+      "amount": 9400,
+      "group": "Physical tutorial",
+      "tier": 1,
+      "units": 4,
+      "previous": null,
+      "source": "Price List 2026!J26",
+      "unavailable": false
+    },
+    {
+      "id": "B-26-11",
+      "product": "B",
+      "level": "IB / IP Y3–Y4",
+      "category": "Package (12+ lessons)",
+      "unit": "lesson",
+      "amount": 8700,
+      "group": "Physical tutorial",
+      "tier": 2,
+      "units": 12,
+      "previous": null,
+      "source": "Price List 2026!K26",
+      "unavailable": false
+    },
+    {
+      "id": "B-26-12",
+      "product": "B",
+      "level": "IB / IP Y3–Y4",
+      "category": "3+ subjects (siblings)",
+      "unit": "lesson",
+      "amount": 8400,
+      "group": "Physical tutorial",
+      "tier": 3,
+      "units": 36,
+      "previous": null,
+      "source": "Price List 2026!L26",
       "unavailable": false
     },
     {
