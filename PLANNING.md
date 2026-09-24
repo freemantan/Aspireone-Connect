@@ -1,41 +1,33 @@
-# Business Planning — release 1
+# Business Planning
 
-Implemented in the native Connect interface under Business Planning. Not an uploaded HTML article; saving uses the existing signed-in session and Connect's server-to-Supabase connection.
+Native Connect module: `/?planning=prices`, `/?planning=commissions`, or `/?planning=budgets`.
 
-## Release contents
+## Current release
 
-- Configurable entities: branch, online, coaching and company, with optional parent entity and access board. No fixed branch count. Initial migration adds Aspire Online and AHCI only; real branch names and legal-company assignments must be entered by the administrator.
-- Shared versioned prices and teacher shares for A–D, plus Physical Centre A–D, Online A–B and Cold Call A–D commission allocations. Initial, renewal and upsell rates; original unknowns remain blank. Commission inputs step by 1 percentage point.
-- Unified price matrix and one commission-set selection for all four Who earns what tables; gross/net-of-teacher preview calculation and retained percentage.
-- Entity-specific monthly budgets with arbitrary named P&L lines across revenue, direct costs, operating costs, other income and tax. Formula types: manual monthly amounts, quantity × versioned price, percentage of another line (custom/teacher/commission rate). Formula chains supported; cycles rejected. Maximum 100 lines per budget in this release.
-- Blank branch template and Aspire Online 2027 ramp template based on the supplied original management model. The online template's sales and percentages are editable budget-specific inputs, not an automatic breakeven solver. Budget totals use monthly cent rounding and may differ by a few cents from the original full-precision HTML.
-- Draft saving, immutable published versions, copying to a new draft, optimistic revision checks, transactional audit history, visible errors and unsaved-change warning.
+- Two entities: Physical Centre and Aspire Online. No AHCI or individual branch setup in the interface.
+- Prices and Commissions are separate tabs and separate Supabase tables. Prices use the supplied 22 September 2027 workbook, with Product A–D navigation, tier columns, package totals, calculated savings and 2026 comparisons where available. The HTML supplies the presentation structure, not the amounts.
+- The workbook sheet is named `Price List 2026`, but columns I–L are explicitly 2027. `lib/price-source.json` preserves cell provenance. Monetary values are integer SGD cents. Mixed IP/IB labels are simplified and standalone IP/IB rows are omitted, following the earlier request. The two Primary 1–2 four-subject packages are unavailable, matching the HTML and prior-year data despite workbook zeros. Pre-school 2027 prices are not supplied. GST treatment is not stated in the sources.
+- Commission tab shows teacher shares by product, Physical Centre A–D, Aspire Online A–B, and Cold Call A–D allocations. Initial, renewal and upsell sets preserve blanks. Increment controls step by 1 percentage point. One commission selection governs all Who earns what tables. Default quantities: 1 student, 12 lessons; D uses one subject-year. Administrator preview uses saved draft prices; other users use published prices.
+- Flexible entity/year budgets retain arbitrary P&L lines, monthly values, quantity × price and percentage formulas. Aspire Online starts from the supplied ramp assumptions. Saved budgets retain their price/commission snapshot to prevent later settings changes silently repricing them.
 
-## Data model
+## Access and publishing
 
-`ao_plan_entities` is the entity directory. `ao_plan_rules` holds each version's structured price rows and commission/teacher maps. `ao_plan_budgets` holds one entity/year/scenario with its P&L lines and a foreign key to a published rules version. `ao_plan_audit` records every save in the same transaction.
+Active invited Connect users can read the last published prices, commissions and budgets. Director and Senior Manager business roles can change inputs in memory for analysis. Board permissions do not grant planning edit/save rights. Administrators can edit, save drafts and publish. Server authorization is checked for every save. Anonymous, inactive, deleted and onboarding users cannot access planning data.
 
-Flexible line definitions and monthly drivers are JSONB per budget, independent of the existing whole-workspace record. Money is stored as integer SGD cents; percentages are explicit numbers, with null for unknown. Tables can be queried directly by entity, year and version; JSONB values can be expanded for reporting. This release does not create one SQL column per P&L variable.
+Save draft updates working values only. Publish replaces the shared snapshot on the same record. There is no new-version/copy-version workflow. Existing publication remains visible while an administrator edits or saves another draft. Directors and Senior Managers cannot persist changes, even through direct API calls. Unpublished draft contents and metadata are not returned to nonadministrators. Concurrent saves use revisions and return a conflict without overwriting another administrator's changes.
 
-Published rules cannot change, so budgets retain their price/commission assumptions. Published budgets cannot change; users copy them into new drafts. There is no automatic switching to the latest price list.
+Open Business Planning in the sidebar, then choose Prices, Commissions or Budgets & Scenarios. Administrators use View published values to see the reader view. Source imports initially remain drafts until the administrator publishes each table. Signed-in readers then see the published values automatically when opening/reloading the module.
 
-Access: active administrators, Directors and users with Manage access to the Directors board manage all planning. Other users inherit their linked entity board's View/Edit/Manage level. Parent entity relationships do not grant child access. Only planning managers edit shared prices/rates. Entity editors save budget drafts; entity managers publish. PostgreSQL browser roles cannot access planning tables or save RPCs; the server enforces permissions.
+## Storage and deployment
 
-## Enable on existing Connect
+Run `deployment/supabase-planning.sql`, then `deployment/supabase-planning-v2.sql`. Both preserve existing records on rerun. Release 2 adds `ao_plan_prices` and `ao_plan_commissions`, each with working payload and independent published snapshot. Budgets have their own publication and calculation-assumption snapshot. `ao_plan_audit` keeps transactional before/after history. Legacy `ao_plan_rules` is retained for existing references/history. No records are deleted.
 
-1. In the existing Supabase project's SQL Editor, run `deployment/supabase-planning.sql` after the existing base setup. The migration is rerunnable and preserves existing records. It adds four tables and one service-role-only function. It does not alter article security or existing task tables.
-2. Deploy the updated Connect application using its existing Cloudflare workflow. No new secrets are needed; it reuses SUPABASE_URL and SUPABASE_SECRET_KEY on the server.
-3. Sign in as an administrator/Director. Open Business Planning. Add the 17 named branches and company structure; link access boards where appropriate.
-4. In Prices & Commissions choose New from 2027 source, review values, save draft and publish the approved version.
-5. Create a budget for an entity; select a published price/rule version, edit P&L lines, save and publish when complete.
-6. Verify a second account's view/edit restrictions and reopen a saved budget from a second browser.
-
-The SQL migration and production deployment have not been applied by this task. Existing local HTML/browser-saved scenarios are not automatically imported; source defaults are provided for review.
+RLS is enabled; browser roles have no direct table or save-function privileges. The authenticated Connect server accesses Supabase through the existing service connection. No new secrets or weaker HTML article sandbox are needed.
 
 ## Validation
 
-78 domain/API/auth tests pass; typecheck and Cloudflare production build pass. Additional isolated PostgreSQL tests using PGlite verify rerunnable migration, atomic save/audit, revision conflicts, immutable publication, entity-cycle rejection, entity reassignment rejection, and denied browser roles. Browser inspection used an isolated local fixture with no live data to check price and budget layouts. Live Supabase end-to-end verification remains pending migration/deployment.
+80 domain/API/auth tests pass. Separate PGlite tests cover rerunnable migration/import, two entities, preservation of draft/publication separation, republishing the same record, stale-revision conflicts, transactional audit, budget snapshots and denied direct browser access. TypeScript and Cloudflare production build pass. Local native UI checks cover workbook values, recalculating package totals, three commission tables, default quantities and one-point commission steps.
 
-## Next release boundary
+## Scope
 
-Actual-result imports, budget-versus-actual reports, group consolidation and intercompany eliminations, accounting-system integration, cash-flow timing and automatic breakeven/goal seeking are not part of release 1. Parent entities are organisational only: no implicit consolidation or double-counted parent totals. No branch names, actual performance figures or legal company mappings have been invented.
+Actual-result imports, budget-versus-actual reporting, group consolidation, intercompany eliminations, accounting-system integration, cash-flow timing and automatic breakeven are future work. No actual performance figures or individual branches have been invented. Original spreadsheets and HTML remain unchanged.

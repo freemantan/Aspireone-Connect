@@ -1,0 +1,4 @@
+'use client';
+export const money=(n:number|null)=>n===null?'Pending':new Intl.NumberFormat('en-SG',{style:'currency',currency:'SGD'}).format(n/100);
+export function Num({value,onChange,money:cash=false,max,step=1,label,disabled=false}:any){return <input aria-label={label} disabled={disabled} type="number" min="0" max={max} step={step} placeholder="Pending" value={value===null?'':cash?value/100:value} onChange={e=>onChange(e.target.value===''?null:cash?Math.round(Number(e.target.value)*100):Number(e.target.value))}/>;}
+export function Pick({value,onChange,options,label,disabled=false}:any){return <select aria-label={label} disabled={disabled} value={value} onChange={e=>onChange(e.target.value)}>{options.map((o:any)=><option value={o.id??o} key={o.id??o}>{o.name??o}</option>)}</select>;}

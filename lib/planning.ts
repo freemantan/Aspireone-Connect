@@ -1,6 +1,6 @@
 import {AppError,role,Row,State} from './model';
 export type Entity={id:string;name:string;kind:'branch'|'online'|'coaching'|'company';parent_id:string|null;board_id:string|null;revision:number};
-export type Price={id:string;product:string;level:string;category:string;unit:string;amount:number|null};
+export type Price={id:string;product:string;level:string;category:string;unit:string;amount:number|null;group?:string;tier?:number;units?:number;previous?:number|null;source?:string;unavailable?:boolean};
 export type Rules={prices:Price[];teacher:Record<string,number|null>;rates:Record<string,Record<string,Record<string,(number|null)[]>>>};
 export type Line={id:string;name:string;category:'revenue'|'direct_cost'|'operating_cost'|'other_income'|'tax';method:'manual'|'quantity'|'percent';values:(number|null)[];priceId?:string;baseId?:string;rate:number|null;rateSource?:'custom'|'teacher'|'commission';product?:string;channel?:string;saleType?:string};
 export type Budget={lines:Line[];notes:string};
@@ -12,8 +12,9 @@ export const clone=<T,>(x:T):T=>JSON.parse(JSON.stringify(x));
 const fail=(ok:unknown,message:string)=>{if(!ok)throw new AppError(message,400);};
 const number=(x:unknown,max=1e12)=>x===null||typeof x==='number'&&Number.isFinite(x)&&x>=0&&x<=max;
 const text=(s:unknown)=>typeof s==='string'&&!!s.trim()&&s.length<=200;
-export function manager(s:State,u:Row){return !!u.active&&!u.onboarding&&!u.deleted&&(u.admin||(u.roles||[]).includes('Director')||role(s,u,'board-0')>=3);}
-export function entityAccess(s:State,u:Row,e:Entity){if(!u.active||u.onboarding||u.deleted)return 0;return manager(s,u)?3:e.board_id?role(s,u,e.board_id):0;}
+export function manager(_s:State,u:Row){return !!u.active&&!u.onboarding&&!u.deleted&&!!u.admin;}
+export function analyst(u:Row){return !!u.active&&!u.onboarding&&!u.deleted&&(!!u.admin||(u.roles||[]).some((r:string)=>['Director','Senior Manager'].includes(r)));}
+export function entityAccess(s:State,u:Row,_e:Entity){if(!u.active||u.onboarding||u.deleted)return 0;return manager(s,u)?3:analyst(u)?2:1;}
 export function validateRules(r:Rules){
  fail(r&&Array.isArray(r.prices)&&r.prices.length<=500,'Invalid price list');const ids=new Set<string>();
  for(const p of r.prices){fail(text(p.id)&&!ids.has(p.id),'Price IDs must be unique');ids.add(p.id);fail(products.includes(p.product)&&text(p.level)&&text(p.category)&&text(p.unit)&&number(p.amount)&& (p.amount===null||Number.isInteger(p.amount)),'Enter valid prices in cents or leave unknown prices blank');}
