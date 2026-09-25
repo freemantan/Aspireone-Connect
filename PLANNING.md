@@ -26,8 +26,18 @@ RLS is enabled; browser roles have no direct table or save-function privileges. 
 
 ## Validation
 
-80 domain/API/auth tests pass. Separate PGlite tests cover rerunnable migration/import, two entities, preservation of draft/publication separation, republishing the same record, stale-revision conflicts, transactional audit, budget snapshots and denied direct browser access. TypeScript and Cloudflare production build pass. Local native UI checks cover workbook values, recalculating package totals, three commission tables, default quantities and one-point commission steps.
+85 domain/API/auth tests pass. Separate PGlite tests cover rerunnable migration/import, two entities, preservation of draft/publication separation, republishing the same record, stale-revision conflicts, transactional audit, budget snapshots and denied direct browser access. TypeScript and Cloudflare production build pass. Local native UI checks cover workbook values, recalculating package totals, three commission tables, default quantities and one-point commission steps.
 
 ## Scope
 
-Actual-result imports, budget-versus-actual reporting, group consolidation, intercompany eliminations, accounting-system integration, cash-flow timing and automatic breakeven are future work. No actual performance figures or individual branches have been invented. Original spreadsheets and HTML remain unchanged.
+Actual-result imports, budget-versus-actual reporting, group consolidation, intercompany eliminations, accounting-system integration, cash-flow timing are future work. No actual performance figures or individual branches have been invented. Original spreadsheets and HTML remain unchanged.
+
+## Aspire Online budget report
+
+The Aspire Online scenario uses the sectioned teal/gold presentation of `Aspire_Online_Budget_2027_v4_interactive.html` inside Budgets & Scenarios. It shows editable sales/teacher/effective referral assumptions, AH fees, operating costs, current versus breakeven annual P&L, illustrative volume equivalents, sales-mix sensitivity, and the monthly P&L with cumulative results. The detailed P&L editor remains available for custom lines and monthly adjustments. Price and commission snapshots, administrator publishing and analyst-only temporary edits are unchanged.
+
+Breakeven changes only manual Product C/D sales and uses the same calculation engine as the saved budget. The original v4 annual target is S$328,147.20 external sales plus S$101,988 AH fees; its 25%-to-100% monthly ramp has only S$205,092 external sales and approximately S$76,909.50 annual loss (three cents difference after monthly rounding). The report exposes both cases explicitly and never silently replaces the projection with the target. One-off costs stay in their scheduled months. Cumulative losses are labelled as a P&L funding indicator rather than cash flow.
+
+New online templates combine admin/customer staff and business management into Staff Cost (S$8,500/month). Existing scenarios combine these lines when selected, preserving every monthly amount and pending value; the combined form persists through the normal Save/Publish actions. Formula-dependent staff lines are retained to avoid breaking references. No database migration is required. Volume calculator averages start from v4 and are clearly labelled illustrative and unsaved.
+
+Validation covers reconciliation with v4, combined staff totals and formula safety, unknown values, additional expenses, impossible breakeven, annual sales preservation and custom monthly profiles. Browser checks confirm zero-result full-year projection, loss-making ramp restoration and Staff Cost recalculation.

@@ -13,3 +13,37 @@ test('only directors and senior managers analyze; only active admins persist',()
 test('latest workbook prices retain every displayed tier and missing-package distinction',()=>{assert.equal(seedRules.prices.length,112);const amount=(id:string)=>seedRules.prices.find(p=>p.id===id)!.amount;assert.equal(amount('A-10-10'),9700);assert.equal(amount('B-22-9'),7700);assert.equal(amount('C-34-11'),4320);assert.equal(amount('D-61-11'),109400);assert.equal(amount('D-51-12'),null);assert.equal(amount('A-14-11'),11200);assert.equal(amount('B-26-11'),8700);assert.equal(seedRules.prices.find(p=>p.id==='A-11-9')!.level,'Secondary 1–2 / IP·IB Y1–2');assert.equal(seedRules.prices.find(p=>p.id==='B-25-9')!.level,'JC / IB / IP Y5–Y6');});
 
 test("recipient payments round independently at half-dollar boundaries",()=>{assert.deepEqual(earnings(1000,0,[4.9,5,5.1,0],"gross").commissions,[0,100,100,0]);const r=earnings(1000,0,[5,5,5,5],"gross");assert.equal(r.retained,600);assert.equal(r.teacher!+r.commissions.reduce<number>((a,b)=>a+b!,0)+r.retained!,1000);});
+
+import {breakeven,combineStaff,cumulative,onlineSales,salesProfile,withOnlineSales} from '../lib/online-budget';
+test('online breakeven reconciles v4 full-year target with its loss-making ramp',()=>{
+ const b=budgetTemplate(true),{result,external,share}=onlineSales(b,seedRules),target=breakeven(b,seedRules,share)!;
+ assert.ok(Math.abs(target.external-32814720)<=12);assert.ok(Math.abs(external!-20509200)<=12);
+ assert.ok(Math.abs(annual(result.net)!+7690950)<=12);assert.ok(Math.abs(annual(target.result.net)!)<=12);
+ const ramp=calculate(withOnlineSales(b,target.external*.625,share,.25),seedRules);
+ assert.ok(Math.abs(annual(ramp.net)!+7690950)<=12);assert.equal(salesProfile(b)!.linear,true);
+ assert.equal(annual(result.rows.staff),10200000);assert.equal(b.lines.some(l=>['admin','manager'].includes(l.id)),false);
+});
+test('staff combination preserves edited months and blanks without mutating source or breaking references',()=>{
+ const b=budgetTemplate(true),staff=b.lines.findIndex(l=>l.id==='staff');
+ b.lines.splice(staff,1,{...b.lines[staff],id:'admin',values:Array(12).fill(450000)},{...b.lines[staff],id:'manager',values:Array(12).fill(400000)});
+ b.lines.find(l=>l.id==='admin')!.values[0]=600000;
+ const before=calculate(b,seedRules),merged=combineStaff(b);assert.deepEqual(calculate(merged,seedRules).net,before.net);assert.equal(merged.lines.find(l=>l.id==='staff')!.values[0],1000000);assert.ok(b.lines.some(l=>l.id==='admin'));
+ b.lines.find(l=>l.id==='admin')!.values[1]=null;assert.equal(combineStaff(b).lines.find(l=>l.id==='staff')!.values[1],null);
+ b.lines.push({id:'staffTax',name:'Staff tax',method:'percent',category:'operating_cost',values:Array(12).fill(0),baseId:'admin',rate:5});assert.deepEqual(combineStaff(b),b);
+});
+test('online target preserves custom extra costs and saved rules, and rejects unknown or non-contributing cases',()=>{
+ const b=budgetTemplate(true);const target=breakeven(b,seedRules,.6)!;
+ b.lines.push({id:'extra',name:'Additional expense',method:'manual',category:'operating_cost',values:Array(12).fill(100000),rate:null});
+ const higher=breakeven(b,seedRules,.6)!;assert.ok(Math.abs(higher.external-target.external-1920000)<=20);
+ b.lines.find(l=>l.id==='extra')!.values[0]=null;assert.equal(breakeven(b,seedRules,.6),null);
+ const loss=budgetTemplate(true);loss.lines.find(l=>l.id==='teachers')!.rate=200;assert.equal(breakeven(loss,seedRules,.6),null);
+ const covered=budgetTemplate(true);covered.lines.find(l=>l.id==='ah')!.values=Array(12).fill(10000000);assert.equal(breakeven(covered,seedRules,.6)!.external,0);
+ assert.deepEqual(cumulative([-30,10,null,30]),[-30,-20,null,null]);
+});
+test('sales reshaping retains annual total, monthly non-sales values and formula lines',()=>{
+ const b=budgetTemplate(true),newBudget=withOnlineSales(b,40000000,.7,.4),r=calculate(newBudget,seedRules);
+ assert.ok(Math.abs(annual(r.rows.c)!-28000000)<=6);assert.ok(Math.abs(annual(r.rows.d)!-12000000)<=6);
+ for(const line of b.lines.filter(l=>!['c','d'].includes(l.id)))assert.deepEqual(newBudget.lines.find(l=>l.id===line.id),line);
+ const profile=salesProfile(newBudget)!;assert.ok(Math.abs(profile.start-.4)<.000001);assert.equal(profile.linear,true);
+ newBudget.lines.find(l=>l.id==='c')!.values[5]!+=100000;assert.equal(salesProfile(newBudget)!.linear,false);
+});
