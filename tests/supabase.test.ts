@@ -50,3 +50,21 @@ test('administrator saves separate prices and cannot forge catalogue labels or p
  const prices=structuredClone(seedRules.prices);prices[0].amount=9999;prices[0].level='Forged';
  try{await planningAPI(new Request('https://portal.example/api/planning',{method:'POST',body:JSON.stringify({kind:'prices',id:settingsId,revision:1,data:{name:'Prices',effective_date:'2027-01-01',status:'draft',payload:{prices},published_data:{secret:true}}})}),u);assert.equal(saved.p_kind,'prices');assert.equal(saved.p_actor,u.id);assert.equal(saved.p_data.payload.prices[0].amount,9999);assert.equal(saved.p_data.payload.prices[0].level,'Primary 1–2');assert.equal(saved.p_data.published_data,undefined);}finally{globalThis.fetch=realFetch;}
 });
+test('budget saves retain cashflow inputs and derive cached amounts from validated assumptions',async()=>{
+ const {planningAPI,settingsId}=await import('../lib/planning-api');const {seedRules}=await import('../lib/planning-seed');const {budgetTemplate}=await import('../lib/planning');
+ const state=initial();ensureKnowledge(state);const u={id:'budget-admin',active:true,admin:true};state.users.push(u);let saved:any,writes=0;
+ const entity='c0000000-0000-4000-8000-000000000002';
+ globalThis.fetch=async(url,opts)=>{const path=new URL(String(url)).pathname;
+  if(path.endsWith('ao_load'))return Response.json({state,revision:1});if(path.endsWith('ao_commit'))return Response.json(true);
+  if(path.endsWith('ao_plan_entities'))return Response.json([{id:entity,kind:'online'}]);
+  if(path.endsWith('ao_plan_prices'))return Response.json([{id:settingsId,published_data:{payload:{prices:seedRules.prices}}}]);
+  if(path.endsWith('ao_plan_commissions'))return Response.json([{id:settingsId,published_data:{payload:{teacher:seedRules.teacher,rates:seedRules.rates}}}]);
+  if(path.endsWith('ao_planning_save')){writes++;saved=JSON.parse(String(opts?.body)).p_data;return Response.json(saved);}
+  throw Error('Unexpected request');
+ };
+ const b=budgetTemplate(true);b.lines.find(l=>l.id==='cc')!.rate=99;b.cashflow={annualTarget:0,openingCash:5000000,payments:Array(12).fill(null)};b.cashflow.payments[0]=0;
+ const request=()=>new Request('https://portal.example/api/planning',{method:'POST',body:JSON.stringify({kind:'budget',data:{entity_id:entity,year:2027,name:'Budget',status:'published',payload:b}})});
+ try{await planningAPI(request(),u);assert.equal(saved.payload.lines.find((l:any)=>l.id==='cc').rate,4.5);assert.deepEqual(saved.payload.cashflow,b.cashflow);assert.equal(writes,1);
+ b.lines.find(l=>l.id==='cc')!.driver={kind:'referral',referred:30,commission:200};await assert.rejects(planningAPI(request(),u),/assumptions/);assert.equal(writes,1);
+ }finally{globalThis.fetch=realFetch;}
+});

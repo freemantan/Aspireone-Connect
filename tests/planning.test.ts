@@ -37,7 +37,7 @@ test('online target preserves custom extra costs and saved rules, and rejects un
  const higher=breakeven(b,seedRules,.6)!;assert.ok(Math.abs(higher.external-target.external-1920000)<=20);
  b.lines.find(l=>l.id==='extra')!.values[0]=null;assert.equal(breakeven(b,seedRules,.6),null);
  const loss=budgetTemplate(true);loss.lines.find(l=>l.id==='teachers')!.rate=200;assert.equal(breakeven(loss,seedRules,.6),null);
- const covered=budgetTemplate(true);covered.lines.find(l=>l.id==='ah')!.values=Array(12).fill(10000000);assert.equal(breakeven(covered,seedRules,.6)!.external,0);
+ const covered=budgetTemplate(true);delete covered.lines.find(l=>l.id==='ah')!.driver;covered.lines.find(l=>l.id==='ah')!.values=Array(12).fill(10000000);assert.equal(breakeven(covered,seedRules,.6)!.external,0);
  assert.deepEqual(cumulative([-30,10,null,30]),[-30,-20,null,null]);
 });
 test('sales reshaping retains annual total, monthly non-sales values and formula lines',()=>{
@@ -46,4 +46,58 @@ test('sales reshaping retains annual total, monthly non-sales values and formula
  for(const line of b.lines.filter(l=>!['c','d'].includes(l.id)))assert.deepEqual(newBudget.lines.find(l=>l.id===line.id),line);
  const profile=salesProfile(newBudget)!;assert.ok(Math.abs(profile.start-.4)<.000001);assert.equal(profile.linear,true);
  newBudget.lines.find(l=>l.id==='c')!.values[5]!+=100000;assert.equal(salesProfile(newBudget)!.linear,false);
+});
+
+import {deriveLine,materializeBudget,withKnownDrivers} from '../lib/budget-drivers';
+import {budgetCashflow,cashflowSource,seasonalCollections} from '../lib/budget-cashflow';
+test('referral factors drive effective commission and cannot be bypassed with cached rates',()=>{
+ const b=budgetTemplate(true),cc=b.lines.find(l=>l.id==='cc')!;
+ cc.driver={kind:'referral',referred:40,commission:15};cc.rate=99;
+ const r=calculate(b,seedRules);assert.equal(deriveLine(cc).rate,6);assert.equal(r.rows.cc[0],Math.round(r.rows.c[0]!*.06));
+ cc.driver.referred=0;assert.equal(calculate(b,seedRules).rows.cc[0],0);
+ cc.driver.referred=null;assert.equal(annual(calculate(b,seedRules).net),null);
+});
+test('AH factors reconcile yearly cents; CPF displays base and employer cost without changing initial totals',()=>{
+ const b=budgetTemplate(true),ah=b.lines.find(l=>l.id==='ah')!,director=b.lines.find(l=>l.id==='director')!;
+ assert.equal(annual(calculate(b,seedRules).rows.ah),10198800);assert.equal(calculate(b,seedRules).rows.director[0],109000);
+ ah.driver={kind:'ah-access',accounts:1,fee:100,multiplier:1};ah.values=Array(12).fill(999999);
+ const material=materializeBudget(b);assert.equal(annual(material.lines.find(l=>l.id==='ah')!.values),100);assert.equal(annual(calculate(b,seedRules).rows.ah),100);
+ director.driver={kind:'employer-cpf',base:200000,cpf:10};assert.equal(calculate(b,seedRules).rows.director[0],220000);
+ ah.driver.accounts=null;assert.equal(calculate(b,seedRules).rows.ah[0],null);
+});
+test('legacy assumption migration preserves custom values and does not infer unknown component rates',()=>{
+ const b=budgetTemplate(true);b.lines.forEach(l=>delete l.driver);
+ const before=calculate(b,seedRules);assert.deepEqual(calculate(withKnownDrivers(b),seedRules),before);
+ b.lines.find(l=>l.id==='cc')!.rate=7;b.lines.find(l=>l.id==='ah')!.values[0]=1000000;
+ const n=withKnownDrivers(b);assert.equal(n.lines.find(l=>l.id==='cc')!.driver,undefined);assert.equal(n.lines.find(l=>l.id==='ah')!.driver,undefined);
+ assert.deepEqual(calculate(n,seedRules),calculate(b,seedRules));
+});
+test('invalid driver and cashflow inputs are rejected',()=>{
+ const b=budgetTemplate(true),cc=b.lines.find(l=>l.id==='cc')!;
+ cc.driver={kind:'referral',referred:101,commission:15};assert.throws(()=>validateBudget(b,seedRules),/assumptions/);
+ cc.driver={kind:'referral',referred:30,commission:15};cc.rateSource='teacher';assert.throws(()=>validateBudget(b,seedRules),/assumptions/);
+ delete cc.driver;cc.rateSource='custom';b.cashflow={annualTarget:100,openingCash:0,payments:Array(11).fill(null)};assert.throws(()=>validateBudget(b,seedRules),/cashflow/);
+ b.cashflow.payments=Array(12).fill(null);b.cashflow.annualTarget=-1;assert.throws(()=>validateBudget(b,seedRules),/cashflow/);
+ b.cashflow.annualTarget=1.2;assert.throws(()=>validateBudget(b,seedRules),/cashflow/);
+});
+test('seasonal collections use full-year 2025 pattern and allocate cents exactly',()=>{
+ assert.ok(Math.abs(cashflowSource.shares.reduce((s,v)=>s+v,0)-1)<1e-12);
+ assert.ok(Math.abs(cashflowSource.shares[0]-64911/507713)<1e-12);
+ assert.ok(Math.abs(cashflowSource.shares[11]-21110/507713)<1e-12);
+ for(const total of [0,1,12,10000,30708000,1e12]){const values=seasonalCollections(total);assert.equal(annual(values),total);assert.ok(values.every(v=>Number.isInteger(v)));}
+ assert.equal(annual(seasonalCollections(null)),null);
+});
+test('cashflow respects opening balances, target and zero-payment overrides without changing P&L',()=>{
+ const b=budgetTemplate(true),before=clone(b),p=calculate(b,seedRules),f=budgetCashflow(b,seedRules);
+ assert.deepEqual(b,before);assert.equal(annual(f.collections),annual(p.revenue));assert.equal(annual(f.net),annual(p.net));assert.ok(f.closing.every(v=>v===null));
+ b.cashflow={annualTarget:null,openingCash:10000000,payments:Array(12).fill(null)};
+ const full=budgetCashflow(b,seedRules);assert.equal(full.closing[11],10000000+annual(full.net)!);assert.equal(full.opening[1],full.closing[0]);
+ b.cashflow.annualTarget=0;b.cashflow.payments[0]=0;const zero=budgetCashflow(b,seedRules);assert.equal(annual(zero.collections),0);assert.equal(zero.payments[0],0);assert.equal(zero.net[0],0);
+ assert.deepEqual(calculate(b,seedRules),p);
+});
+test('cashflow unknown expenses propagate and payment overrides can supply known cash timing',()=>{
+ const b=budgetTemplate(true);b.lines.find(l=>l.id==='staff')!.values[0]=null;
+ b.cashflow={annualTarget:12000000,openingCash:0,payments:Array(12).fill(null)};
+ assert.equal(budgetCashflow(b,seedRules).net[0],null);assert.equal(budgetCashflow(b,seedRules).closing[11],null);
+ b.cashflow.payments[0]=1000;assert.notEqual(budgetCashflow(b,seedRules).closing[11],null);
 });

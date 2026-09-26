@@ -30,7 +30,7 @@ RLS is enabled; browser roles have no direct table or save-function privileges. 
 
 ## Scope
 
-Actual-result imports, budget-versus-actual reporting, group consolidation, intercompany eliminations, accounting-system integration, cash-flow timing are future work. No actual performance figures or individual branches have been invented. Original spreadsheets and HTML remain unchanged.
+Actual-result imports, budget-versus-actual reporting, group consolidation, intercompany eliminations, accounting-system integration are future work. No actual performance figures or individual branches have been invented. Original spreadsheets and HTML remain unchanged.
 
 ## Aspire Online budget report
 
@@ -43,3 +43,11 @@ New online templates combine admin/customer staff and business management into S
 Validation covers reconciliation with v4, combined staff totals and formula safety, unknown values, additional expenses, impossible breakeven, annual sales preservation and custom monthly profiles. Browser checks confirm zero-result full-year projection, loss-making ramp restoration and Staff Cost recalculation.
 
 Published commissions are editable by every signed-in planning reader for temporary calculations, including administrators in published view. Save and Publish are unavailable there; reset restores the published snapshot. Published-view edits and resets do not enter the administrator draft cache. Prices and budget permissions remain unchanged; the API continues to deny every nonadministrator save.
+
+## Assumption breakdown and monthly cashflow
+
+Online budgets expose referral share and commission rate separately, calculating the effective rate. AH access income exposes eligible account-terms, fee and multiplier; Director costs expose base fee and employer CPF. Derived values are authoritative in calculations and server saves. Existing custom amounts remain intact when their original factors are unknown; users can explicitly define factors or return to direct values.
+
+Monthly cash collections use the 2025 collection shares from `88Tuition Monthly Cashflow Budget.xlsx`, `Monthly budget!B10:B21` (base totals C30:C42). Only aggregate percentages are bundled, with source provenance; no payment records are shipped. The annual target defaults to the selected budget's revenue, with an optional override. Integer-cent allocation reconciles exactly to the target. Other income and expense payments default to their budget months; monthly payment overrides support different timing. Opening cash must be entered before closing balances are shown. These are projected cash movements, not actual receipts, and do not change the monthly P&L. Source currency is unspecified, so only its seasonal percentages are applied to the SGD budget.
+
+Cashflow assumptions and drivers persist within the existing budget payload and publication snapshot; no database migration is needed. Existing permissions apply. Typecheck, all 93 domain/API tests and the Cloudflare production build pass. Local UI checks confirm factor recalculation, annual cashflow totals and opening-to-closing cash reconciliation.

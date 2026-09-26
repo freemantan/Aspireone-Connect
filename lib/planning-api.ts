@@ -1,3 +1,4 @@
+import {materializeBudget} from './budget-drivers';
 import {supabase,rpc} from './supabase';
 import {load} from './supabase-store';
 import {check,find,Row} from './model';
@@ -46,6 +47,7 @@ export async function planningAPI(r:Request,user:Row){
   if(p.id){const old=(await rows(tables.budget,'&id=eq.'+p.id))[0];check(old&&old.entity_id===d.entity_id,'Budget unavailable',404);rules=old.rules_snapshot||publishedRules;}
   check(rules,'Publish prices and commissions before saving a budget',400);
   validateBudget(d.payload,rules!);
+  data.payload=materializeBudget(d.payload);
   if(d.status==='published')check(annual(calculate(d.payload,rules!).net)!==null,'Complete unknown values before publishing the budget',400);
   data={...data,entity_id:d.entity_id,year:d.year,rules_snapshot:rules};
  }

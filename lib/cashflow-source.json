@@ -1,0 +1,22 @@
+{
+  "file": "88Tuition Monthly Cashflow Budget.xlsx",
+  "sheet": "Monthly budget",
+  "shareRange": "B10:B21",
+  "baseRange": "C30:C42",
+  "baseYear": 2025,
+  "shares": [
+    0.12784978915253303,
+    0.0829070754540459,
+    0.0978328307528072,
+    0.08347038582821398,
+    0.1051893491007715,
+    0.08272390110160661,
+    0.07287187840374384,
+    0.06835357771024181,
+    0.04981160616332456,
+    0.11377096903171674,
+    0.07364002891397305,
+    0.0415786083870218
+  ],
+  "method": "Each month\u2019s 2025 collections divided by total 2025 collections. Use the percentages with the selected budget\u2019s currency and annual receipts target."
+}
