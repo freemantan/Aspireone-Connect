@@ -43,6 +43,18 @@ export function onlineCashflow(b:Budget,r:Rules){
  const projected=calculate(seasonal,r);
  const rows=b.lines.map(l=>{
   let values=onlinePeriods.map(p=>projected.rows[l.id][p.month]);
+  if(l.id==='ah'){
+   // Monthly fees are collected the following month; no August opening receivable is assumed.
+   const fee=original.rows[l.id];
+   const override=b.cashflow?.annualTarget;
+   const total=annual(projected.rows[l.id]),originalTotal=annual(fee);
+   let scheduled=fee;
+   if(override!==null&&override!==undefined){
+    if(total===null||originalTotal===null)scheduled=Array(12).fill(null);
+    else {const precise=fee.map(v=>originalTotal===0?total/12:v!*total/originalTotal),rounded=precise.map(Math.floor),order=precise.map((v,i)=>({i,f:v-rounded[i]})).sort((a,b)=>b.f-a.f||a.i-b.i);const remainder=total-rounded.reduce((a,b)=>a+b,0);for(let i=0;i<remainder;i++)rounded[order[i].i]++;scheduled=rounded;}
+   }
+   values=onlinePeriods.map((p,i)=>i===0?0:scheduled[(p.month+11)%12]);
+  }
   if(l.id==='launch'){
    const total=annual(original.rows[l.id]);
    values=onlinePeriods.map((_,i)=>i>=1&&i<=4?(total===null?null:Math.floor(total/4)+(i-1<total%4?1:0)):0);

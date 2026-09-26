@@ -1,3 +1,4 @@
+import {onlineCashflow} from './budget-cashflow';
 import {annual, Budget, calculate, clone, Line, Rules} from './planning';
 
 // A presentation migration only: retain every month's total, unknowns and formula dependencies.
@@ -39,3 +40,18 @@ export function breakeven(b:Budget,r:Rules,share:number){
  return {external:annual(result.rows.c)!+annual(result.rows.d)!,result,covered:false};
 }
 export function cumulative(values:(number|null)[]){let sum:number|null=0;return values.map(v=>sum=sum===null||v===null?null:sum+v);}
+
+// Solve the displayed 16-month cashflow, excluding opening cash from breakeven.
+export function cashflowBreakeven(b:Budget,r:Rules,share:number){
+ const scenario=(sales:number)=>{const n=withOnlineSales(b,sales,share,1);if(n.cashflow)n.cashflow.annualTarget=null;return n;};
+ const net=(sales:number)=>annual(onlineCashflow(scenario(sales),r).net);
+ const zero=net(0);if(zero===null)return null;
+ if(zero>=0)return {external:0,budget:scenario(0),result:calculate(scenario(0),r),covered:true};
+ const probe=net(100000000);if(probe===null||probe<=zero)return null;
+ let low=0,high=Math.ceil(-zero/(probe-zero)*100000000)+10000;
+ while(high<=1e12&&(net(high)??-1)<0)high*=2;
+ if(high>1e12)return null;
+ while(high-low>1){const mid=Math.floor((low+high)/2);if((net(mid)??-1)>=0)high=mid;else low=mid;}
+ const budget=scenario(high),result=calculate(budget,r);
+ return {external:annual(result.rows.c)!+annual(result.rows.d)!,budget,result,covered:false};
+}

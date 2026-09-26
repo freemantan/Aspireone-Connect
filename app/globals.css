@@ -76,3 +76,5 @@
 .cashflow-statement .net>*{background:#eaf0f4!important;font-weight:700;border-top:2px solid #607b8a}
 .cashflow-statement .balance>*{background:#174e48!important;color:#fff;font-weight:700;border-top:2px solid #fff}
 .cashflow-statement .balance .online-negative{color:#ffc7b8!important}
+
+.commission-choice{padding:16px;border:2px solid #21776b;border-radius:10px;background:#eaf6f1;font-weight:700}.commission-choice select{display:block;width:100%;margin-top:10px;padding:12px 38px 12px 12px;border:2px solid #21776b!important;background-color:white!important;color:#134e45;font-weight:700;appearance:auto!important;cursor:pointer}.commission-choice select:focus{outline:3px solid #e3ae45;outline-offset:2px}.collection-ratios>*{background:#eef3f7!important;font-size:12px}.cashflow-statement td,.cashflow-statement thead th:not(:first-child){min-width:102px}

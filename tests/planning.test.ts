@@ -129,7 +129,7 @@ test('online cashflow covers Sep 2026 to Dec 2027, reconciles launch payments an
  for(const l of b.lines.filter(l=>l.category==='revenue')){
   const row=f.rows.find(x=>x.id===l.id)!;
   assert.equal(annual(row.values.slice(4)),annual(base.rows[l.id]));
-  assert.deepEqual(row.values.slice(0,4),seasonalCollections(annual(base.rows[l.id])).slice(8));
+  if(l.id==='ah')assert.deepEqual(row.values.slice(0,4),[0,849900,849900,849900]);else assert.deepEqual(row.values.slice(0,4),seasonalCollections(annual(base.rows[l.id])).slice(8));
  }
  const c=f.rows.find(l=>l.id==='c')!,cc=f.rows.find(l=>l.id==='cc')!;
  assert.equal(cc.values[0],Math.round(c.values[0]!*.045));
@@ -155,4 +155,15 @@ test('budget navigation restores database record and separates published snapsho
  const reader={...data,manage:false,budgets:[{id:'one',entity_id:'online',payload:published,status:'published'}]};
  assert.equal(selectedBudget(reader,true).payload.notes,'Published');
  assert.equal(selectedBudget({...data,budgets:[]},true),null);
+});
+
+import {cashflowBreakeven} from '../lib/online-budget';
+test('cashflow breakeven covers the full period without consuming opening cash',()=>{
+ const b=budgetTemplate(true),before=JSON.stringify(b),target=cashflowBreakeven(b,seedRules,.6)!;
+ const flow=onlineCashflow(target.budget,seedRules),net=annual(flow.net)!;
+ assert.ok(net>=0&&net<100, String(net));assert.ok(Math.abs(flow.closing[15]!-3250000)<100);
+ assert.deepEqual(flow.rows.find(l=>l.id==='ah')!.values,[0,...Array(15).fill(849900)]);
+ assert.equal(JSON.stringify(b),before);
+ b.lines.find(l=>l.id==='tech')!.values=Array(12).fill(900000);
+ assert.ok(cashflowBreakeven(b,seedRules,.6)!.external>target.external);
 });
