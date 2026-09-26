@@ -145,3 +145,14 @@ test('period overrides preserve zero, validate inputs, and reconcile payment adj
  b.cashflow.periodPayments=[0];assert.throws(()=>validateBudget(b,seedRules),/period cash/);
  b.cashflow.periodPayments=Array(16).fill(null);b.cashflow.septemberOpening=1.5;assert.throws(()=>validateBudget(b,seedRules),/opening cash/);
 });
+
+import {visibleBudgets,selectedBudget} from '../lib/planning-selection';
+test('budget navigation restores database record and separates published snapshots from drafts',()=>{
+ const payload=budgetTemplate(true),published=structuredClone(payload);published.notes='Published';payload.notes='Working draft';
+ const data={manage:true,entities:[{id:'online',kind:'online'}],budgets:[{id:'one',entity_id:'online',payload,published_data:{entity_id:'online',payload:published}},{id:'two',entity_id:'online',payload}]};
+ assert.equal(selectedBudget(data,false,'two').id,'two');assert.equal(selectedBudget(data,false).payload.notes,'Working draft');
+ assert.equal(selectedBudget(data,true,'one').payload.notes,'Published');assert.equal(visibleBudgets(data,true).length,1);
+ const reader={...data,manage:false,budgets:[{id:'one',entity_id:'online',payload:published,status:'published'}]};
+ assert.equal(selectedBudget(reader,true).payload.notes,'Published');
+ assert.equal(selectedBudget({...data,budgets:[]},true),null);
+});
