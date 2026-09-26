@@ -240,7 +240,10 @@ test('article audience protects content metadata and discussions; author and man
  assert.throws(()=>mutate(s,editor,{op:'article.pin',board:board.id,id:a.id,version:a.version,pinned:true}));
  mutate(s,manager,{op:'article.pin',board:board.id,id:a.id,version:a.version,pinned:true});assert.equal(a.pinned,true);
  assert.throws(()=>mutate(s,manager,{op:'article.save',board:board.id,id:a.id,version:a.version,title:'Changed'}));
- mutate(s,manager,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true});assert.equal(view(s,editor).articles.length,0);
+ for(const user of [manager,editor])assert.throws(()=>mutate(s,user,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true}),/Only system administrators/);
+ assert.ok(!a.deleted);
+ assert.throws(()=>mutate(s,admin,{op:'article.delete',board:board.id,id:a.id,version:a.version}),/Confirm deletion/);
+ mutate(s,admin,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true});assert.equal(view(s,editor).articles.length,0);
  assert.throws(()=>mutate(s,editor,{op:'chat.post',board:board.id,subject:a.id,body:'Deleted'}));
 });
 test('only system admins can assign roles; removal revokes role access',()=>{

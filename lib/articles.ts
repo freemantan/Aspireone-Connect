@@ -13,7 +13,7 @@ export function articleOperation(s:State,u:Row,p:any){
   check(target>=0&&target<rows.length,'Article is already at the end of this section',400);
   [rows[index],rows[target]]=[rows[target],rows[index]];rows.forEach((x,i)=>{if(x.order!==i){x.order=i;x.version++;}});audit(s,u,board.id,a.id,'Article moved',null,p.direction);return;
  }
- if(p.op==='article.delete'){check(a&&(a.author===u.id||level>=3));check(p.confirm===true,'Confirm deletion',400);a.deleted=true;a.version++;audit(s,u,board.id,a.id,'Article deleted',null,null);return;}
+ if(p.op==='article.delete'){check(a&&u.admin===true,'Only system administrators can remove articles',403);check(p.confirm===true,'Confirm deletion',400);a.deleted=true;a.version++;audit(s,u,board.id,a.id,'Article deleted',null,null);return;}
  if(p.op==='article.pin'){check(a&&level>=3,'Manager access required');a.pinned=!!p.pinned;a.version++;return a;}
  check(p.op==='article.save','Unknown article action',400);check(!a||a.author===u.id||level>=3,'Only the author or a Manager can edit article details');
  const title=typeof p.title==='string'?p.title.trim():'',description=typeof p.description==='string'?p.description.trim():'';
