@@ -56,3 +56,11 @@
 .online-driver-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin:20px 0}.online-driver{padding:18px;border:1px solid #ccdcd5;border-radius:10px;background:#f7faf8;min-width:0}.online-driver h4{margin:0;color:#174e48}.online-driver .planning-fields{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}.online-driver output{display:block;background:#e8f2ed;padding:12px;margin:12px 0;font-variant-numeric:tabular-nums}.online-driver small{line-height:1.5}@media(max-width:500px){.online-driver-grid{grid-template-columns:1fr}}
 
 .online-cash-chart{margin:24px 0;padding:16px;background:#f7faf8;border:1px solid #d4e1d9;border-radius:10px}.online-cash-chart svg{display:block;width:100%;max-height:320px}.online-cash-chart figcaption{font-weight:600;margin-bottom:10px}.online-cash-chart>div{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;font-size:13px}
+
+/* Compact, aligned budget assumptions. */
+#online-assumptions .planning-fields{align-items:start}
+#online-assumptions .planning-fields label{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;min-height:88px}
+#online-assumptions .planning-fields input{width:140px;max-width:100%;box-sizing:border-box;text-align:right;margin-top:6px}
+#online-assumptions .online-driver .planning-fields{grid-template-columns:1fr;gap:8px}
+#online-assumptions .online-driver .planning-fields label{display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:12px;min-height:38px}
+#online-assumptions .online-driver .planning-fields input{width:110px;margin-top:0}

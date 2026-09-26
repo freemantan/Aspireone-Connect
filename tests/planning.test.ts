@@ -101,3 +101,16 @@ test('cashflow unknown expenses propagate and payment overrides can supply known
  assert.equal(budgetCashflow(b,seedRules).net[0],null);assert.equal(budgetCashflow(b,seedRules).closing[11],null);
  b.cashflow.payments[0]=1000;assert.notEqual(budgetCashflow(b,seedRules).closing[11],null);
 });
+
+test('online cost presentation preserves existing CPF totals and extra costs while removing the director driver',()=>{
+ const b=budgetTemplate(true),line=b.lines.find(l=>l.id==='director')!;
+ line.driver={kind:'employer-cpf',base:200000,cpf:10};
+ const before=calculate(b,seedRules),next=withKnownDrivers(b);
+ assert.deepEqual(calculate(next,seedRules).net,before.net);
+ assert.equal(next.lines.find(l=>l.id==='director')!.name,'Management Support Cost');
+ assert.equal(next.lines.find(l=>l.id==='director')!.driver,undefined);
+ assert.equal(next.lines.find(l=>l.id==='director')!.values[0],220000);
+ assert.deepEqual(next.lines.filter(l=>l.category==='operating_cost').map(l=>l.id),['director','tech','hosting','staff','marketing','launch','curriculum']);
+ assert.ok(next.lines.some(l=>l.id==='curriculum'));
+ assert.deepEqual(withKnownDrivers(next),next);
+});

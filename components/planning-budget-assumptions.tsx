@@ -6,7 +6,7 @@ const percent=(v:number|null)=>v===null?'Pending':v.toLocaleString('en-SG',{maxi
 export function PlanningBudgetAssumptions({budget:b,rules,share,editable,onChange}:{budget:Budget;rules:Rules;share:number;editable:boolean;onChange:(b:Budget)=>void}){
  const change=(id:string,key:string,value:number|null)=>{const n=clone(b),l=n.lines.find(l=>l.id===id)!;if(l.driver)Object.assign(l.driver,{[key]:value});else l.rate=value;onChange(materializeBudget(n));};
  const attach=(l:Line,driver:BudgetDriver)=>{const n=clone(b);n.lines.find(x=>x.id===l.id)!.driver=driver;onChange(materializeBudget(n));};
- return <fieldset disabled={!editable} className="online-driver-grid">{b.lines.filter(l=>l.driver||['teachers','cc','dc','ah','director'].includes(l.id)).map(l=>{
+ return <fieldset disabled={!editable} className="online-driver-grid">{b.lines.filter(l=>l.id!=='director'&&(l.driver||['teachers','cc','dc','ah'].includes(l.id))).map(l=>{
  const d=l.driver,effective=deriveLine(l);
  return <div className="online-driver" key={l.id}><h4>{l.name}</h4>
   {d?.kind==='referral'?<><div className="planning-fields"><label>Sales referred (%)<Num label={l.name+' referred percentage'} value={d.referred} max={100} step="1" onChange={(v:number|null)=>change(l.id,'referred',v)}/></label><label>Commission on referred sales (%)<Num label={l.name+' commission rate'} value={d.commission} max={100} step="1" onChange={(v:number|null)=>change(l.id,'commission',v)}/></label></div><output>Effective rate: {percent(d.referred)} × {percent(d.commission)} = <strong>{percent(effective.rate)}</strong></output><small>Applies to all revenue in {b.lines.find(x=>x.id===l.baseId)?.name||'the base line'}.</small></>:

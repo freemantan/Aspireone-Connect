@@ -26,14 +26,21 @@ export function deriveLine(line:Line):Line {
 export function materializeBudget(b:Budget):Budget{return {...b,lines:b.lines.map(deriveLine)};}
 // Only restore documented v4 breakdowns when every stored amount still matches.
 export function withKnownDrivers(b:Budget):Budget {
- return materializeBudget({...b,lines:b.lines.map(l=>{
+ const lines=b.lines.map((l):Line=>{
+  const names:Record<string,string>={director:'Management Support Cost',tech:'Technical Support',hosting:'Hosting and Subscriptions',staff:'Staff Cost (Manager + Admin)',marketing:'Marketing',launch:'Launch Marketing and Coach Subsidy'};
+  if(names[l.id])l={...l,name:names[l.id]};
+  if(l.id==='director'){l=deriveLine(l);const {driver,...manual}=l;return manual;}
   if(l.driver)return l;
   if(l.method==='percent'&&(l.rateSource||'custom')==='custom'){
    if(l.id==='cc'&&l.baseId==='c'&&l.rate===4.5)return {...l,driver:{kind:'referral',referred:30,commission:15}};
    if(l.id==='dc'&&l.baseId==='d'&&l.rate===12)return {...l,driver:{kind:'referral',referred:30,commission:40}};
   }
   if(l.method==='manual'&&l.id==='ah'&&l.values.every(v=>v===849900))return {...l,driver:{kind:'ah-access',accounts:2833,fee:1200,multiplier:3}};
-  if(l.method==='manual'&&l.id==='director'&&l.values.every(v=>v===109000))return {...l,name:'Director fee including employer CPF',driver:{kind:'employer-cpf',base:100000,cpf:9}};
   return l;
- })});
+ });
+ const costs=lines.filter(l=>l.category==='operating_cost').sort((a,b)=>{
+  const order=['director','tech','hosting','staff','marketing','launch'];
+  return (order.includes(a.id)?order.indexOf(a.id):order.length)-(order.includes(b.id)?order.indexOf(b.id):order.length);
+ });
+ let index=0;return materializeBudget({...b,lines:lines.map(l=>l.category==='operating_cost'?costs[index++]:l)});
 }
