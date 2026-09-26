@@ -177,3 +177,13 @@ test('online referrals follow published commission totals while keeping referral
  r.rates.initial['Physical Centre'].C=[10,5,10,0];assert.equal(linkedOnlineCommissions(linked,r).lines.find(l=>l.id==='cc')!.rate,10);
  r.rates.initial['Physical Centre'].C[0]=null;assert.equal(linkedOnlineCommissions(linked,r).lines.find(l=>l.id==='cc')!.rate,null);
 });
+
+import {budgetScope,planningTab,planningRoute,planningTabs} from '../lib/planning-selection';
+test('separate budget tabs select only their own entities and published records',()=>{
+ const data={manage:true,entities:[{id:'online',kind:'online'},{id:'centre',kind:'branch'}],budgets:[{id:'o',entity_id:'online',payload:budgetTemplate(true),published_data:{entity_id:'online',payload:budgetTemplate(true)}},{id:'p',entity_id:'centre',payload:budgetTemplate(),published_data:{entity_id:'centre',payload:budgetTemplate()}}]};
+ assert.deepEqual(planningTabs,['Prices','Commissions','Aspire Online Budget','Physical Centre']);
+ for(const [tab,id] of [['Aspire Online Budget','o'],['Physical Centre','p']]){
+  const scoped=budgetScope(data,tab);assert.equal(selectedBudget(scoped,true).id,id);assert.equal(scoped.budgets.length,1);assert.equal(planningTab(planningRoute(tab)),tab);
+ }
+ assert.equal(planningTab('budgets'),'Aspire Online Budget');
+});
