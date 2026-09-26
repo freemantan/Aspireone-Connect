@@ -1,3 +1,4 @@
+import {linkedOnlineCommissions} from './online-commissions';
 import {clone} from './planning';
 import {withKnownDrivers} from './budget-drivers';
 import {combineStaff} from './online-budget';
@@ -12,6 +13,6 @@ export function selectedBudget(data:any,published:boolean,id?:string|null){
 export function prepareBudget(data:any,record:any){
  if(!record)return null;
  const next=clone(record);
- if(data.entities.some((e:any)=>e.id===next.entity_id&&e.kind==='online'))next.payload=withKnownDrivers(combineStaff(next.payload));
+ if(data.entities.some((e:any)=>e.id===next.entity_id&&e.kind==='online')){next.payload=withKnownDrivers(combineStaff(next.payload));if(data.publishedRules)next.payload=linkedOnlineCommissions(next.payload,data.publishedRules);}
  return next;
 }

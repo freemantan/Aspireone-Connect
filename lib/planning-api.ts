@@ -1,3 +1,4 @@
+import {linkedOnlineCommissions} from './online-commissions';
 import {materializeBudget} from './budget-drivers';
 import {supabase,rpc} from './supabase';
 import {load} from './supabase-store';
@@ -19,7 +20,12 @@ export async function planningAPI(r:Request,user:Row){
  const pubPrice=publishedRecord(price),pubCommission=publishedRecord(commission);
  const publishedRules:Rules|null=pubPrice&&pubCommission?{prices:pubPrice.payload.prices,...pubCommission.payload}:null;
  if(r.method==='GET'){
-  const budgets=await rows(tables.budget,'&entity_id=in.('+entities.map(e=>e.id).join(',')+')');
+  let budgets=await rows(tables.budget,'&entity_id=in.('+entities.map(e=>e.id).join(',')+')');
+  if(publishedRules)budgets=budgets.map(b=>{
+   if(!entities.some(e=>e.id===b.entity_id&&e.kind==='online'))return b;
+   const sync=(record:any)=>record?{...record,payload:linkedOnlineCommissions(record.payload,publishedRules!)}:record;
+   return {...sync(b),published_data:sync(b.published_data)};
+  });
   return {entities:entities.map(e=>({...e,access:manage?3:canAnalyze?2:1})),prices:manage?price:pubPrice,commissions:manage?commission:pubCommission,publishedPrices:pubPrice,publishedCommissions:pubCommission,publishedRules,budgets:manage?budgets:budgets.map(publishedRecord).filter(Boolean),manage,canAnalyze};
  }
  check(Number(r.headers.get('content-length')||0)<=500000,'Planning request too large',413);
@@ -46,6 +52,8 @@ export async function planningAPI(r:Request,user:Row){
   let rules=publishedRules;
   if(p.id){const old=(await rows(tables.budget,'&id=eq.'+p.id))[0];check(old&&old.entity_id===d.entity_id,'Budget unavailable',404);rules=old.rules_snapshot||publishedRules;}
   check(rules,'Publish prices and commissions before saving a budget',400);
+  validateBudget(d.payload,rules!);
+  if(entities.some(e=>e.id===d.entity_id&&e.kind==='online')&&publishedRules)d.payload=linkedOnlineCommissions(d.payload,publishedRules);
   validateBudget(d.payload,rules!);
   data.payload=materializeBudget(d.payload);
   if(d.status==='published')check(annual(calculate(d.payload,rules!).net)!==null,'Complete unknown values before publishing the budget',400);
