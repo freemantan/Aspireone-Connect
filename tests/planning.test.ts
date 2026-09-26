@@ -114,3 +114,34 @@ test('online cost presentation preserves existing CPF totals and extra costs whi
  assert.ok(next.lines.some(l=>l.id==='curriculum'));
  assert.deepEqual(withKnownDrivers(next),next);
 });
+
+import {onlineCashflow,onlinePeriods} from '../lib/budget-cashflow';
+test('online cashflow covers Sep 2026 to Dec 2027, reconciles launch payments and opening balances',()=>{
+ const b=budgetTemplate(true),before=JSON.stringify(b),f=onlineCashflow(b,seedRules);
+ assert.deepEqual(onlinePeriods[0],{year:2026,month:8});assert.deepEqual(onlinePeriods[15],{year:2027,month:11});
+ assert.equal(f.opening[0],3250000);assert.equal(f.opening[4],f.closing[3]);
+ const launch=f.rows.find(l=>l.id==='launch')!;
+ assert.deepEqual(launch.values,[0,750000,750000,750000,750000,...Array(11).fill(0)]);
+ assert.equal(annual(launch.values),3000000);
+ assert.equal(f.rows.find(l=>l.id==='marketing')!.values[0],200000);
+ assert.equal(f.rows.find(l=>l.id==='staff')!.values[0],850000);
+ const base=calculate(b,seedRules);
+ for(const l of b.lines.filter(l=>l.category==='revenue')){
+  const row=f.rows.find(x=>x.id===l.id)!;
+  assert.equal(annual(row.values.slice(4)),annual(base.rows[l.id]));
+  assert.deepEqual(row.values.slice(0,4),seasonalCollections(annual(base.rows[l.id])).slice(8));
+ }
+ const c=f.rows.find(l=>l.id==='c')!,cc=f.rows.find(l=>l.id==='cc')!;
+ assert.equal(cc.values[0],Math.round(c.values[0]!*.045));
+ assert.equal(f.closing[15],3250000+annual(f.receipts)!-annual(f.payments)!);
+ assert.equal(JSON.stringify(b),before);
+});
+test('period overrides preserve zero, validate inputs, and reconcile payment adjustments',()=>{
+ const b=budgetTemplate(true);b.cashflow={annualTarget:12345678,openingCash:null,payments:Array(12).fill(null),periodPayments:Array(16).fill(null),septemberOpening:0};
+ b.cashflow.periodPayments![0]=0;
+ const f=onlineCashflow(b,seedRules);
+ assert.equal(annual(f.receipts.slice(4)),12345678);assert.equal(f.opening[0],0);assert.equal(f.payments[0],0);assert.equal(f.adjustment[0],-f.expense[0]!);
+ b.cashflow.septemberOpening=null;assert.equal(onlineCashflow(b,seedRules).closing[15],null);
+ b.cashflow.periodPayments=[0];assert.throws(()=>validateBudget(b,seedRules),/period cash/);
+ b.cashflow.periodPayments=Array(16).fill(null);b.cashflow.septemberOpening=1.5;assert.throws(()=>validateBudget(b,seedRules),/opening cash/);
+});

@@ -21,3 +21,42 @@ export function budgetCashflow(b:Budget,r:Rules){
  net.forEach(v=>{opening.push(current);current=add(current,v);closing.push(current);total=add(total,v);cumulative.push(total);});
  return {target,collections,other,receipts,expense,payments,net,opening,closing,cumulative};
 }
+
+export const onlinePeriods=Array.from({length:16},(_,i)=>({year:i<4?2026:2027,month:(i+8)%12}));
+// The source provides seasonality, not a separate 2026 sales target. Apply the
+// selected annual target to each year and retain only Sep–Dec for 2026.
+export function onlineCashflow(b:Budget,r:Rules){
+ const original=calculate(b,r),target=b.cashflow?.annualTarget??annual(original.revenue);
+ const revenue=b.lines.filter(l=>l.category==='revenue'),baseTotals=revenue.map(l=>annual(original.rows[l.id]));
+ const base=annual(baseTotals);
+ let allocated=0;
+ const seasonal={...b,lines:b.lines.map(l=>{
+  if(l.category!=='revenue')return l;
+  const index=revenue.indexOf(l),amount=baseTotals[index];
+  let total=amount;
+  if(b.cashflow?.annualTarget!==null&&b.cashflow?.annualTarget!==undefined){
+   total=base===null?null:base===0?(index===0?target:0):index===revenue.length-1?target!-allocated:Math.round(target!*amount!/base);
+   if(total!==null)allocated+=total;
+  }
+  return {...l,method:'manual' as const,driver:undefined,values:seasonalCollections(total)};
+ })};
+ const projected=calculate(seasonal,r);
+ const rows=b.lines.map(l=>{
+  let values=onlinePeriods.map(p=>projected.rows[l.id][p.month]);
+  if(l.id==='launch'){
+   const total=annual(original.rows[l.id]);
+   values=onlinePeriods.map((_,i)=>i>=1&&i<=4?(total===null?null:Math.floor(total/4)+(i-1<total%4?1:0)):0);
+  }
+  return {id:l.id,name:l.name,category:l.category,values};
+ });
+ const total=(categories:string[])=>onlinePeriods.map((_,i)=>rows.filter(l=>categories.includes(l.category)).reduce<number|null>((sum,l)=>add(sum,l.values[i]),0));
+ const receipts=total(['revenue','other_income']),expense=total(['direct_cost','operating_cost','tax']);
+ const overrides=b.cashflow?.periodPayments;
+ const payments=expense.map((v,i)=>overrides?overrides[i]??v:i>=4?b.cashflow?.payments[i-4]??v:v);
+ const adjustment=payments.map((v,i)=>v===null||expense[i]===null?null:v-expense[i]!);
+ const net=receipts.map((v,i)=>v===null||payments[i]===null?null:v-payments[i]!);
+ let balance=b.cashflow?.septemberOpening===undefined?3250000:b.cashflow.septemberOpening;
+ const opening:(number|null)[]=[],closing:(number|null)[]=[];
+ net.forEach(v=>{opening.push(balance);balance=add(balance,v);closing.push(balance);});
+ return {target,rows,receipts,expense,payments,adjustment,net,opening,closing};
+}
