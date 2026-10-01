@@ -1,3 +1,4 @@
+import {calculatePriceTiers,proposalVersion} from './price-calculations';
 import {linkedOnlineCommissions} from './online-commissions';
 import {materializeBudget} from './budget-drivers';
 import {supabase,rpc} from './supabase';
@@ -44,7 +45,10 @@ export async function planningAPI(r:Request,user:Row){
   if(kind==='prices'){
    validateRules({...seedRules,prices:d.payload?.prices});
    check(d.payload.prices.length===seedRules.prices.length&&seedRules.prices.every(source=>d.payload.prices.some((v:any)=>v.id===source.id)),'Keep the complete price catalogue',400);
-   data.payload={prices:seedRules.prices.map(source=>({...source,amount:source.unavailable?null:d.payload.prices.find((v:any)=>v.id===source.id).amount}))};
+   const prices=seedRules.prices.map(source=>{const input=d.payload.prices.find((v:any)=>v.id===source.id);const {discount:_,...metadata}=source;return {...metadata,amount:source.unavailable?null:input.amount,...(input.discount!==undefined?{discount:input.discount}:{})};});
+   for(const price of prices)check(price.discount===undefined||price.discount===null||Number.isInteger(price.discount)&&price.discount>=0&&price.discount<=1e12,'Invalid dollar discount',400);
+   const calculated=calculatePriceTiers(prices);validateRules({...seedRules,prices:calculated});
+   data.payload={prices:calculated,...(d.payload.proposalVersion===proposalVersion?{proposalVersion}:{})};
   }else{validateRules({...d.payload,prices:[]});data.payload={teacher:d.payload.teacher,rates:d.payload.rates};}
  }else{
   check(entities.some(e=>e.id===d.entity_id),'Business entity unavailable',400);

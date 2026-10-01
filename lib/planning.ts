@@ -1,7 +1,7 @@
 import {BudgetDriver,deriveLine,validDriver,withKnownDrivers} from './budget-drivers';
 import {AppError,role,Row,State} from './model';
 export type Entity={id:string;name:string;kind:'branch'|'online'|'coaching'|'company';parent_id:string|null;board_id:string|null;revision:number};
-export type Price={id:string;product:string;level:string;category:string;unit:string;amount:number|null;group?:string;tier?:number;units?:number;previous?:number|null;source?:string;unavailable?:boolean};
+export type Price={id:string;product:string;level:string;category:string;unit:string;amount:number|null;group?:string;tier?:number;units?:number;previous?:number|null;source?:string;unavailable?:boolean;discount?:number|null;displayOrder?:number};
 export type Rules={prices:Price[];teacher:Record<string,number|null>;rates:Record<string,Record<string,Record<string,(number|null)[]>>>};
 export type Line={id:string;name:string;category:'revenue'|'direct_cost'|'operating_cost'|'other_income'|'tax';method:'manual'|'quantity'|'percent';values:(number|null)[];priceId?:string;baseId?:string;rate:number|null;rateSource?:'custom'|'teacher'|'commission';product?:string;channel?:string;saleType?:string;driver?:BudgetDriver};
 export type Budget={lines:Line[];notes:string;cashflow?:{annualTarget:number|null;openingCash:number|null;payments:(number|null)[];septemberOpening?:number|null;periodPayments?:(number|null)[]}};
