@@ -1,3 +1,4 @@
+import jcPrices from './jc-prices.json';
 import type {Price} from './planning';
 import approved from './october-prices.json';
 export const proposalVersion='2027-october-01';
@@ -19,3 +20,5 @@ export function calculatePriceTiers(prices:Price[]):Price[]{return prices.map(p=
 export function editPrice(prices:Price[],id:string,value:number|null,field:'amount'|'discount'='amount'):Price[]{
  return calculatePriceTiers(prices.map(p=>p.id===id?{...p,[field]:value}:p));
 }
+
+export function addJCPrices(prices:Price[]):Price[]{return [...prices,...jcPrices.filter(p=>!prices.some(x=>x.id===p.id))];}

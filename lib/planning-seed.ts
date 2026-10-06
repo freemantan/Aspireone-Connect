@@ -1,3 +1,4 @@
+import jcPrices from './jc-prices.json';
 import type {Rules} from './planning';
 // Approved October proposal; Product B upper-level prices corrected by Freeman.
 export const seedRules:Rules={
@@ -1896,3 +1897,5 @@ export const seedRules:Rules={
     }
   }
 };
+
+seedRules.prices.push(...jcPrices);
