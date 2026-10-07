@@ -9,7 +9,7 @@ export function PlanningMemberAccess({record,users,editable,onSave}:{record:any;
  const [open,setOpen]=useState(false),[person,setPerson]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const selected=record.payload.memberAccess??null;
  const [grants,setGrants]=useState<Record<string,string>>(record.payload.roleAccess||{});
- useEffect(()=>{setGrants(record.payload.roleAccess||{});setPerson('');},[record.id,record.revision]);
+ useEffect(()=>{setGrants(record.payload.roleAccess||{});setPerson('');},[record.id,record.revision,record.payload.roleAccess]);
  const roleMember=(u:any)=>(u.roles||[]).filter((r:string)=>record.payload.roleAccess?.[r]==='View');
  const active=users.filter(u=>u.active&&!u.deleted&&!u.onboarding).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
  const members=active.filter(u=>canViewPlan(record,u));
