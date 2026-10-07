@@ -31,11 +31,11 @@ export function BusinessPlanning({s}:any){
  };
 
  async function save(kind:string,publish=false){if(!draft||!data?.manage||publicView)return;setBusy(true);setError('');try{const record=await api({kind,id:draft.id,revision:draft.revision,data:{...draft,status:publish?'published':'draft'}});setDraft(record);if(kind==='budget')rememberBudget(record);setWorking(w=>({...w,[tab]:{draft:record,dirty:false}}));setDirty(false);setNotice(publish?'Published. Other signed-in users now see these values.':'Draft saved. Published values are unchanged.');await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
- async function saveMembers(members:string[]|null){
+ async function saveMembers(members:string[]|null,roleAccess:Record<string,string>){
   const record=isBudgetTab(tab)?data.budgets.find((b:any)=>b.id===draft?.id):data[tab==='Prices'?'prices':'commissions'];
   if(!record?.id)throw Error('Save this plan before adding members.');
-  const updated=await api({action:'members',kind:isBudgetTab(tab)?'budget':tab==='Prices'?'prices':'commissions',id:record.id,revision:record.revision,members});
-  const merge=(r:any)=>r?.id===updated.id?{...r,revision:updated.revision,payload:{...r.payload,memberAccess:members}}:r;
+  const updated=await api({action:'members',kind:isBudgetTab(tab)?'budget':tab==='Prices'?'prices':'commissions',id:record.id,revision:record.revision,members,roleAccess});
+  const merge=(r:any)=>r?.id===updated.id?{...r,revision:updated.revision,payload:{...r.payload,memberAccess:members,roleAccess}}:r;
   setDraft(merge);setWorking(w=>Object.fromEntries(Object.entries(w).map(([key,value])=>[key,key===tab?{...value,draft:merge(value.draft)}:value])));await refresh();
  }
  if(!data)return <div className="planning"><p role="alert">{error||'Loading Business Planning…'}</p><button onClick={()=>refresh().then(d=>setDraft(clone(d.publishedPrices||null))).catch(e=>setError(e.message))}>Retry</button></div>;

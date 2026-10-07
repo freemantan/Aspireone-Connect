@@ -1,4 +1,4 @@
-import {canViewPlan,validateMemberAccess} from './planning-access';
+import {canViewPlan,validateMemberAccess,validatePlanRoleAccess} from './planning-access';
 import {calculatePriceTiers,proposalVersion} from './price-calculations';
 import {linkedOnlineCommissions} from './online-commissions';
 import {materializeBudget} from './budget-drivers';
@@ -11,7 +11,7 @@ const tables={prices:'ao_plan_prices',commissions:'ao_plan_commissions',budget:'
 export const settingsId='c0000000-0000-4000-8000-000000000003';
 async function rows(table:string,filter=''){return (await supabase('/rest/v1/'+table+'?select=*'+filter)).json() as Promise<any[]>;}
 // Readers receive only the last published snapshot, never a working draft.
-export function publishedRecord(row:any){return row?.published_data?{...row.published_data,id:row.id,status:'published',published_at:row.published_at,payload:{...row.published_data.payload,memberAccess:row.payload?.memberAccess??null}}:null;}
+export function publishedRecord(row:any){return row?.published_data?{...row.published_data,id:row.id,status:'published',published_at:row.published_at,payload:{...row.published_data.payload,memberAccess:row.payload?.memberAccess??null,roleAccess:row.payload?.roleAccess||{}}}:null;}
 export async function planningAPI(r:Request,user:Row){
  const {state}=await load(),u=find(state,'users',user.id);check(u.active&&!u.onboarding&&!u.deleted);
  const manage=manager(state,u),canAnalyze=analyst(u);
@@ -41,8 +41,9 @@ export async function planningAPI(r:Request,user:Row){
   const old=(await rows(tables[kind],'&id=eq.'+p.id))[0];check(old,'Plan unavailable',404);
   check(old.revision===p.revision,'Another administrator changed this plan. Reload and try again.',409);
   let memberAccess;try{memberAccess=validateMemberAccess(p.members,state.users);}catch{check(false,'Choose active members for plan access',400);}
+  let roleAccess;try{roleAccess=validatePlanRoleAccess(p.roleAccess===undefined?old.payload?.roleAccess:p.roleAccess);}catch{check(false,'Choose valid plan role access',400);}
   const fields=kind==='budget'?{entity_id:old.entity_id,year:old.year,rules_snapshot:old.rules_snapshot}:{effective_date:old.effective_date};
-  try{return await rpc('ao_planning_save',{p_kind:kind,p_id:p.id,p_revision:p.revision,p_actor:u.id,p_data:{...fields,name:old.name,status:old.status,payload:{...old.payload,memberAccess}}});}
+  try{return await rpc('ao_planning_save',{p_kind:kind,p_id:p.id,p_revision:p.revision,p_actor:u.id,p_data:{...fields,name:old.name,status:old.status,payload:{...old.payload,memberAccess,roleAccess}}});}
   catch(e){const current=(await rows(tables[kind],'&id=eq.'+p.id))[0];check(current?.revision===p.revision,'Another administrator changed this plan. Reload and try again.',409);throw e;}
  }
 
@@ -51,6 +52,7 @@ export async function planningAPI(r:Request,user:Row){
  check(!p.id||Number.isInteger(p.revision)&&p.revision>0,'Invalid revision',400);
  check(['draft','published'].includes(d.status),'Invalid status',400);
  let memberAccess;try{memberAccess=validateMemberAccess(d.payload?.memberAccess,state.users);}catch{check(false,'Choose active members for plan access',400);}
+ let roleAccess;try{roleAccess=validatePlanRoleAccess(d.payload?.roleAccess);}catch{check(false,'Choose valid plan role access',400);}
  let data:any={name:d.name.trim(),status:d.status,payload:d.payload};
  if(kind!=='budget'){
   check(p.id===settingsId,'Use the current settings record',400);
@@ -77,7 +79,7 @@ export async function planningAPI(r:Request,user:Row){
   if(d.status==='published')check(annual(calculate(d.payload,rules!).net)!==null,'Complete unknown values before publishing the budget',400);
   data={...data,entity_id:d.entity_id,year:d.year,rules_snapshot:rules};
  }
- data.payload={...data.payload,memberAccess};
+ data.payload={...data.payload,memberAccess,roleAccess};
  try{return await rpc('ao_planning_save',{p_kind:kind,p_id:p.id||null,p_revision:p.revision||0,p_actor:u.id,p_data:data});}
  catch(e){if(p.id){const current=(await rows(tables[kind],'&id=eq.'+p.id))[0];check(current&&current.revision===p.revision,'Another administrator saved changes. Your edits are preserved; reload the saved values before retrying.',409);}throw e;}
 }
