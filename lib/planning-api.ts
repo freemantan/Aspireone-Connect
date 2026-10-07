@@ -1,3 +1,4 @@
+import {canViewPlan,validateMemberAccess} from './planning-access';
 import {calculatePriceTiers,proposalVersion} from './price-calculations';
 import {linkedOnlineCommissions} from './online-commissions';
 import {materializeBudget} from './budget-drivers';
@@ -18,16 +19,18 @@ export async function planningAPI(r:Request,user:Row){
  const [allEntities,priceRows,commissionRows]=await Promise.all([rows('ao_plan_entities'),rows(tables.prices),rows(tables.commissions)]);
  const entities=allEntities.filter(e=>['c0000000-0000-4000-8000-000000000001','c0000000-0000-4000-8000-000000000002'].includes(e.id));
  const price=priceRows.find(x=>x.id===settingsId),commission=commissionRows.find(x=>x.id===settingsId);
- const pubPrice=publishedRecord(price),pubCommission=publishedRecord(commission);
+ const priceAccess=canViewPlan(price,u),commissionAccess=canViewPlan(commission,u);
+ const pubPrice=priceAccess?publishedRecord(price):null,pubCommission=commissionAccess?publishedRecord(commission):null;
  const publishedRules:Rules|null=pubPrice&&pubCommission?{prices:pubPrice.payload.prices,...pubCommission.payload}:null;
  if(r.method==='GET'){
   let budgets=await rows(tables.budget,'&entity_id=in.('+entities.map(e=>e.id).join(',')+')');
+  if(!manage)budgets=budgets.filter(b=>priceAccess&&commissionAccess&&canViewPlan(b,u));
   if(publishedRules)budgets=budgets.map(b=>{
    if(!entities.some(e=>e.id===b.entity_id&&e.kind==='online'))return b;
    const sync=(record:any)=>record?{...record,payload:linkedOnlineCommissions(record.payload,publishedRules!)}:record;
    return {...sync(b),published_data:sync(b.published_data)};
   });
-  return {entities:entities.map(e=>({...e,access:manage?3:canAnalyze?2:1})),prices:manage?price:pubPrice,commissions:manage?commission:pubCommission,publishedPrices:pubPrice,publishedCommissions:pubCommission,publishedRules,budgets:manage?budgets:budgets.map(publishedRecord).filter(Boolean),manage,canAnalyze};
+  return {access:{prices:priceAccess,commissions:commissionAccess},entities:entities.map(e=>({...e,access:manage?3:canAnalyze?2:1})),prices:manage?price:pubPrice,commissions:manage?commission:pubCommission,publishedPrices:pubPrice,publishedCommissions:pubCommission,publishedRules,budgets:manage?budgets:budgets.map(publishedRecord).filter(Boolean),manage,canAnalyze};
  }
  check(Number(r.headers.get('content-length')||0)<=500000,'Planning request too large',413);
  const raw=await r.text();check(new TextEncoder().encode(raw).length<=500000,'Planning request too large',413);
@@ -37,6 +40,7 @@ export async function planningAPI(r:Request,user:Row){
  check(!p.id||typeof p.id==='string'&&/^[a-f0-9-]{36}$/.test(p.id),'Invalid record ID',400);
  check(!p.id||Number.isInteger(p.revision)&&p.revision>0,'Invalid revision',400);
  check(['draft','published'].includes(d.status),'Invalid status',400);
+ let memberAccess;try{memberAccess=validateMemberAccess(d.payload?.memberAccess,state.users);}catch{check(false,'Choose active members for plan access',400);}
  let data:any={name:d.name.trim(),status:d.status,payload:d.payload};
  if(kind!=='budget'){
   check(p.id===settingsId,'Use the current settings record',400);
@@ -63,6 +67,7 @@ export async function planningAPI(r:Request,user:Row){
   if(d.status==='published')check(annual(calculate(d.payload,rules!).net)!==null,'Complete unknown values before publishing the budget',400);
   data={...data,entity_id:d.entity_id,year:d.year,rules_snapshot:rules};
  }
+ data.payload={...data.payload,memberAccess};
  try{return await rpc('ao_planning_save',{p_kind:kind,p_id:p.id||null,p_revision:p.revision||0,p_actor:u.id,p_data:data});}
  catch(e){if(p.id){const current=(await rows(tables[kind],'&id=eq.'+p.id))[0];check(current&&current.revision===p.revision,'Another administrator saved changes. Your edits are preserved; reload the saved values before retrying.',409);}throw e;}
 }

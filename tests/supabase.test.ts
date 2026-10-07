@@ -68,3 +68,34 @@ test('budget saves retain cashflow inputs and derive cached amounts from validat
  b.lines.find(l=>l.id==='cc')!.driver={kind:'referral',referred:30,commission:200};await assert.rejects(planningAPI(request(),u),/assumptions/);assert.equal(writes,1);
  }finally{globalThis.fetch=realFetch;}
 });
+
+test('plan access revocations hide publications and dependent budget snapshots',async()=>{
+ const {planningAPI,settingsId}=await import('../lib/planning-api');const {seedRules}=await import('../lib/planning-seed');
+ const state=initial();ensureKnowledge(state);const u={id:'restricted-reader',active:true,roles:[]};state.users.push(u);
+ let priceAccess:any=null,commissionAccess:any=null,budgetAccess:any=null;
+ const row=(payload:any,memberAccess:any)=>({id:settingsId,payload:{memberAccess},published_data:{name:'Published',payload:{...payload,memberAccess:null}}});
+ globalThis.fetch=async(url)=>{const path=new URL(String(url)).pathname;
+ if(path.endsWith('ao_load'))return Response.json({state,revision:1});if(path.endsWith('ao_commit'))return Response.json(true);
+ if(path.endsWith('ao_plan_entities'))return Response.json([]);
+ if(path.endsWith('ao_plan_prices'))return Response.json([row({prices:seedRules.prices},priceAccess)]);
+ if(path.endsWith('ao_plan_commissions'))return Response.json([row({teacher:seedRules.teacher,rates:seedRules.rates},commissionAccess)]);
+ if(path.endsWith('ao_plan_budgets'))return Response.json([row({lines:[],rules_snapshot:seedRules},budgetAccess)]);
+ throw Error('Unexpected request');};
+ const get=()=>planningAPI(new Request('https://portal.example/api/planning'),u);
+ try{
+ assert.equal((await get()).budgets.length,1);
+ priceAccess=[];let data=await get();assert.equal(data.prices,null);assert.equal(data.publishedPrices,null);assert.equal(data.publishedRules,null);assert.deepEqual(data.budgets,[]);
+ priceAccess=[u.id];commissionAccess=[];data=await get();assert.equal(data.commissions,null);assert.equal(data.publishedRules,null);assert.deepEqual(data.budgets,[]);
+ commissionAccess=[u.id];budgetAccess=[];assert.deepEqual((await get()).budgets,[]);
+ budgetAccess=[u.id];assert.equal((await get()).budgets.length,1);
+ }finally{globalThis.fetch=realFetch;}
+});
+test('member access validates active users and preserves administrator access',async()=>{
+ const {canViewPlan,validateMemberAccess}=await import('../lib/planning-access');
+ const users=[{id:'a',active:true},{id:'inactive',active:false}];
+ assert.deepEqual(validateMemberAccess(['a','a'],users),['a']);
+ assert.throws(()=>validateMemberAccess(['inactive'],users));assert.throws(()=>validateMemberAccess(['unknown'],users));
+ assert.equal(canViewPlan({payload:{memberAccess:[]}}, {id:'admin',active:true,admin:true}),true);
+ assert.equal(canViewPlan({payload:{memberAccess:null}}, {id:'inactive',active:false,admin:true}),false);
+ assert.equal(canViewPlan({payload:{memberAccess:[]}},users[0]),false);
+});
