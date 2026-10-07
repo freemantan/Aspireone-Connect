@@ -1,3 +1,4 @@
+import {learningBoardId} from './learning';
 import {noticeBoardId,noticeGroups,noticeGroupAccess} from './notice-board';
 import {businessRoles,ensureKnowledge} from './business-roles';
 import {canReadArticle,articleOperation} from './articles';
@@ -55,6 +56,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const old=p.id?find(s,'branches',p.id):null;if(old)check(p.version===old.version,'Branch changed. Refresh and retry.',409);
   const branch=old||{id:uid(),version:0};Object.assign(branch,{name,abbreviation,manager:p.manager,version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
  }
+ if(p.board===learningBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Learning is automatically available to all active staff',400);
  if(p.board===noticeBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Manage member access within a Notice Group',400);
 
  if(p.op==='roles.assign'){

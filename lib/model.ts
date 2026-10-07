@@ -1,3 +1,4 @@
+import {learningBoardId} from './learning';
 import {noticeBoardId,noticeAccess,noticeArticleLevel,canPublishByRole,explicitArticleReader} from './notice-board';
 import {roleAccess} from './business-roles';
 import {canReadArticle} from './articles';
@@ -14,9 +15,10 @@ export class AppError extends Error { status:number; constructor(message:string,
 export function check(v:any,m='Access denied',status=403):asserts v {if(!v)throw new AppError(m,status);}
 export const find=(s:State,k:string,id:string)=>{const r=s[k]?.find(x=>x.id===id);check(r,'Record unavailable',404);return r;};
 const permission=(value:string)=>({View:1,Edit:2,Manage:3}[value as 'View']||0);
-export const role=(s:State,u:Row,b:string)=>(!u.active||u.onboarding||u.deleted)?0:u.admin?4:b===noticeBoardId?noticeAccess(s,u):Math.max(s.boards.some(x=>x.id===b&&x.kind==='articles')?(canPublishByRole(u)?2:(s.articles||[]).some(a=>a.board===b&&explicitArticleReader(u,a))?1:0):0,permission(s.members.find(m=>m.board===b&&m.user===u.id)?.role),permission(s.members.find(m=>m.board==='board-0'&&m.user===u.id)?.role),roleAccess(s,u,b),roleAccess(s,u,'board-0'));
-export const member=(s:State,b:string,id:string)=>b===noticeBoardId?s.users.some(u=>u.id===id&&noticeAccess(s,u)>0):s.users.some(u=>u.id===id&&u.active&&!u.deleted&&(s.members.some(m=>(m.board===b||m.board==='board-0')&&m.user===id)||roleAccess(s,u,b)>0||roleAccess(s,u,'board-0')>0));
+export const role=(s:State,u:Row,b:string)=>(!u.active||u.onboarding||u.deleted)?0:u.admin?4:b===learningBoardId?2:b===noticeBoardId?noticeAccess(s,u):Math.max(s.boards.some(x=>x.id===b&&x.kind==='articles')?(canPublishByRole(u)?2:(s.articles||[]).some(a=>a.board===b&&explicitArticleReader(u,a))?1:0):0,permission(s.members.find(m=>m.board===b&&m.user===u.id)?.role),permission(s.members.find(m=>m.board==='board-0'&&m.user===u.id)?.role),roleAccess(s,u,b),roleAccess(s,u,'board-0'));
+export const member=(s:State,b:string,id:string)=>b===learningBoardId?s.users.some(u=>u.id===id&&u.active&&!u.onboarding&&!u.deleted):b===noticeBoardId?s.users.some(u=>u.id===id&&noticeAccess(s,u)>0):s.users.some(u=>u.id===id&&u.active&&!u.deleted&&(s.members.some(m=>(m.board===b||m.board==='board-0')&&m.user===id)||roleAccess(s,u,b)>0||roleAccess(s,u,'board-0')>0));
 export function boardMemberships(s:State,b:string){
+ if(b===learningBoardId)return s.users.filter(u=>u.active&&!u.onboarding&&!u.deleted).map(u=>({id:'learning:'+u.id,board:b,user:u.id,role:u.admin?'Manage':'Edit'}));
  if(b===noticeBoardId)return s.users.filter(u=>noticeAccess(s,u)>0).map(u=>({id:'notice:'+u.id,board:b,user:u.id,role:['','View','Edit','Manage','Manage'][noticeAccess(s,u)]}));
  const rows=s.members.filter(m=>m.board===b).map(m=>({...m}));
 

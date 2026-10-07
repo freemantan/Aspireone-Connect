@@ -81,7 +81,7 @@ test('invitation backfill does not reactivate deleted or disabled people',()=>{
  const {s,admin}=setup();const i=mutate(s,admin,{op:'company.invite',email:'disabled@example.test',name:'Disabled'});i.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===i.email)!;person.active=false;person.deleted=true;
  s.members.push({id:'legacy-pending',board:'board-1',pendingEmail:person.email,role:'Edit'});provisionInvitedPeople(s);assert.equal(person.active,false);assert.equal(s.members.find(m=>m.id==='legacy-pending')!.user,undefined);
 });
-test('independent board permissions and Directors privacy',()=>{const {s,viewer,manager,admin}=setup();assert.equal(role(s,viewer,'board-1'),1);assert.equal(role(s,viewer,'board-3'),2);assert.equal(role(s,viewer,'board-0'),0);assert.equal(view(s,viewer).boards.length,5);assert.equal(view(s,admin).boards.length,8);denied(()=>mutate(s,manager,{op:'board.create',name:'Forbidden'}));denied(()=>mutate(s,manager,{op:'user',id:manager.id,admin:true}));});
+test('independent board permissions and Directors privacy',()=>{const {s,viewer,manager,admin}=setup();assert.equal(role(s,viewer,'board-1'),1);assert.equal(role(s,viewer,'board-3'),2);assert.equal(role(s,viewer,'board-0'),0);assert.equal(view(s,viewer).boards.length,6);assert.equal(view(s,admin).boards.length,8);denied(()=>mutate(s,manager,{op:'board.create',name:'Forbidden'}));denied(()=>mutate(s,manager,{op:'user',id:manager.id,admin:true}));});
 test('Directors members inherit board permissions and are assignable everywhere without system administration',()=>{
  const {s,admin,editor,viewer,t,b}=setup();s.members=s.members.filter(m=>m.user!==editor.id);mutate(s,admin,{op:'member',board:'board-0',user:editor.id,role:'Edit'});
  assert.ok(s.boards.filter(board=>board.id!=='knowledge-strategies').every(board=>role(s,editor,board.id)===2));assert.equal(view(s,editor).tasks.length,s.tasks.length);denied(()=>mutate(s,editor,{op:'user',id:viewer.id,admin:true}));
@@ -229,7 +229,7 @@ test('role board grants combine permissions, revoke immediately and never activa
  assert.throws(()=>mutate(s,viewer,{op:'board.roles',board:b.id,version:b.version,grants:{Finance:'Manage'}}));
 });
 test('article audience protects content metadata and discussions; author and manager permissions differ',()=>{
- const {s,admin,viewer,editor,manager}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;
+ const {s,admin,viewer,editor,manager}=setup();view(s,admin);const board={id:'test-private',name:'Private articles',kind:'articles',version:1,roleAccess:{},statuses:[],columns:[],hidden:[],archived:false};s.boards.push(board);
  for(const [u,r] of [[viewer,'View'],[editor,'Edit'],[manager,'Manage']] as any[]){s.members.push({id:'a-'+u.id,board:board.id,user:u.id,role:r});}
  s.files.push({id:'html',board:board.id,user:editor.id,articleContent:true});
  const a=mutate(s,editor,{op:'article.save',board:board.id,title:'Finance report',description:'Quarterly',publishDate:'2026-09-23',tags:['Finance'],audience:['Finance'],content:'html'});
@@ -255,7 +255,7 @@ test('only system admins can assign roles; removal revokes role access',()=>{
  mutate(s,admin,{op:'roles.assign',user:viewer.id,roles:[]});assert.equal(role(s,viewer,b.id),0);
 });
 test('PDF articles retain their type and reject another author’s uploaded content',()=>{
- const {s,admin,editor}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;
+ const {s,admin,editor}=setup();view(s,admin);const board={id:'test-private',name:'Private articles',kind:'articles',version:1,roleAccess:{},statuses:[],columns:[],hidden:[],archived:false};s.boards.push(board);
  s.members.push({id:'pdf-member',board:board.id,user:editor.id,role:'Edit'});
  s.files.push({id:'pdf',board:board.id,user:editor.id,articleContent:true,type:'application/pdf'});
  const p={op:'article.save',board:board.id,title:'Report',description:'',publishDate:'2026-09-23',tags:[],audience:['Finance'],content:'pdf'};
@@ -277,7 +277,7 @@ test('migrated Director category grants and article role restrictions preserve a
  viewer.roles=[];assert.equal(view(s,viewer).articles.length,0);const everyone=mutate(s,admin,{...p,audience:'all'});assert.equal(everyone.audience,'all');assert.equal(view(s,viewer).articles.length,0);mutate(s,admin,{op:'notice.access',group:'All Staffs',version:board.version,user:viewer.id,access:'View'});assert.deepEqual(view(s,viewer).articles.map((a:any)=>a.id),[everyone.id]);
 });
 test('article ordering is manager-only and stays within the pinned or ordinary section',()=>{
- const {s,admin,editor}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;s.members.push({id:'order-editor',board:board.id,user:editor.id,role:'Edit'});
+ const {s,admin,editor}=setup();view(s,admin);const board={id:'test-private',name:'Private articles',kind:'articles',version:1,roleAccess:{},statuses:[],columns:[],hidden:[],archived:false};s.boards.push(board);s.members.push({id:'order-editor',board:board.id,user:editor.id,role:'Edit'});
  const base={board:board.id,author:admin.id,publishDate:'2026-09-23',createdAt:'2026-09-23T00:00:00Z',version:1,audience:['Director']};s.articles.push({...base,id:'first',order:0},{...base,id:'second',order:1},{...base,id:'pinned',pinned:true,order:0});
  assert.throws(()=>mutate(s,editor,{op:'article.move',board:board.id,id:'second',version:1,direction:'up'}));
  mutate(s,admin,{op:'article.move',board:board.id,id:'second',version:1,direction:'up'});assert.equal(s.articles.find(a=>a.id==='second')!.order,0);assert.equal(s.articles.find(a=>a.id==='first')!.order,1);assert.equal(s.articles.find(a=>a.id==='pinned')!.order,0);
@@ -285,12 +285,12 @@ test('article ordering is manager-only and stays within the pinned or ordinary s
  assert.throws(()=>mutate(s,admin,{op:'article.move',board:board.id,id:'pinned',version:1,direction:'down'}));
 });
 test('Managers can edit article metadata while preserving the author and attachments',()=>{
- const {s,admin,editor,viewer}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;s.members.push({id:'edit-owner',board:board.id,user:editor.id,role:'Edit'});
+ const {s,admin,editor,viewer}=setup();view(s,admin);const board={id:'test-private',name:'Private articles',kind:'articles',version:1,roleAccess:{},statuses:[],columns:[],hidden:[],archived:false};s.boards.push(board);s.members.push({id:'edit-owner',board:board.id,user:editor.id,role:'Edit'});
  s.files.push({id:'owned',board:board.id,user:editor.id,articleContent:true,type:'application/pdf'});
  const p={op:'article.save',board:board.id,title:'Original',description:'Before',publishDate:'2026-09-23',tags:[],audience:['Finance'],content:'owned',attachments:['owned']};
  const a=mutate(s,editor,p);mutate(s,admin,{...p,id:a.id,version:a.version,description:'After',audience:['Marketing']});assert.equal(a.description,'After');assert.equal(a.author,editor.id);assert.ok(a.audience.includes('Marketing'));
  assert.throws(()=>mutate(s,viewer,{...p,id:a.id,version:a.version}));
- s.files.push({id:'replacement',board:board.id,user:admin.id,articleContent:true});assert.throws(()=>mutate(s,admin,{...p,id:a.id,version:a.version,content:'replacement',attachments:['replacement']}));
+ s.files.push({id:'replacement',board:board.id,user:admin.id,articleContent:true});mutate(s,admin,{...p,id:a.id,version:a.version,content:'replacement',attachments:['replacement']});assert.equal(a.content,'replacement');
 });
 
 test('HTML reports can run the pinned chart library while remaining isolated from portal data',()=>{
@@ -334,7 +334,7 @@ test('branch administration validates managers, unique names and article branch 
 });
 
 test('individual article access grants only the selected article without board membership',()=>{
- const {s,admin,viewer}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;viewer.roles=[];s.members=s.members.filter(m=>m.user!==viewer.id);
+ const {s,admin,viewer}=setup();view(s,admin);const board={id:'test-private',name:'Private articles',kind:'articles',version:1,roleAccess:{},statuses:[],columns:[],hidden:[],archived:false};s.boards.push(board);viewer.roles=[];s.members=s.members.filter(m=>m.user!==viewer.id);
  s.files.push({id:'individual-file',board:board.id,user:admin.id,articleContent:true,type:'text/html'});
  const base={op:'article.save',board:board.id,title:'Individual article',description:'',publishDate:'2026-10-07',tags:[],audience:[],individualAccess:[viewer.id],content:'individual-file'};
  const a=mutate(s,admin,base);mutate(s,admin,{...base,title:'Other article',audience:'all',individualAccess:[]});assert.deepEqual(view(s,viewer).articles.map((a:any)=>a.id),[a.id]);assert.ok(view(s,viewer).boards.some((b:any)=>b.id===board.id));
@@ -353,8 +353,28 @@ test('each publishing role can publish to multiple Notice Groups but cannot mana
  }
 });
 test('new articles are placed before older manually ordered articles',async()=>{
- const {compareArticles}=await import('../lib/article-order');const {s,admin}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;
+ const {compareArticles}=await import('../lib/article-order');const {s,admin}=setup();view(s,admin);const board={id:'test-private',name:'Private articles',kind:'articles',version:1,roleAccess:{},statuses:[],columns:[],hidden:[],archived:false};s.boards.push(board);
  s.files.push({id:'new-first-file',board:board.id,user:admin.id,articleContent:true,type:'text/html'});
  const p={op:'article.save',board:board.id,title:'First',description:'',publishDate:'2026-10-07',tags:[],audience:'all',content:'new-first-file'};
  const first=mutate(s,admin,p);first.order=-40;const second=mutate(s,admin,{...p,title:'Second'});assert.equal([first,second].sort(compareArticles)[0].id,second.id);
+});
+
+
+test('Learning is open to active staff with author ownership and administrator control',()=>{
+ const {s,admin,viewer,editor}=setup();view(s,admin);const board='knowledge-learning';s.members=[];viewer.roles=[];editor.roles=[];
+ s.files.push({id:'learning-file',board,user:viewer.id,articleContent:true,type:'text/html'});
+ const p={op:'article.save',board,title:'Share a technique',description:'',publishDate:'2026-10-07',tags:[],category:'Teaching practice',content:'learning-file'};
+ const a=mutate(s,viewer,p);assert.equal(a.audience,'all');assert.equal(role(s,editor,board),2);assert.ok(view(s,editor).articles.some((x:any)=>x.id===a.id));
+ assert.throws(()=>mutate(s,editor,{...p,id:a.id,version:a.version}));assert.throws(()=>mutate(s,editor,{op:'article.delete',board,id:a.id,version:a.version,confirm:true}));
+ mutate(s,viewer,{...p,id:a.id,version:a.version,title:'Updated'});assert.equal(a.title,'Updated');
+ s.files.push({id:'admin-learning-file',board,user:admin.id,articleContent:true,type:'text/html'});mutate(s,admin,{...p,id:a.id,version:a.version,content:'admin-learning-file'});assert.equal(a.content,'admin-learning-file');
+ editor.active=false;assert.throws(()=>view(s,editor));editor.active=true;editor.onboarding=true;assert.equal(role(s,editor,board),0);
+ mutate(s,admin,{op:'article.delete',board,id:a.id,version:a.version,confirm:true});assert.equal(a.deleted,true);
+});
+test('Learning migration moves existing articles, files and discussions once without widening readership',async()=>{
+ const {initialiseLearning}=await import('../lib/learning');const {s,admin,viewer,editor}=setup();view(s,admin);const b=s.boards.find(x=>x.id==='knowledge-learning')!;delete b.learningVersion;b.name='Info & Learning';
+ s.members=s.members.filter(m=>m.user!==viewer.id);s.members.push({id:'old-learning-reader',board:b.id,user:viewer.id,role:'View'});viewer.roles=['Finance'];editor.roles=[];s.members=s.members.filter(m=>m.user!==editor.id);
+ s.articles.push({id:'move-me',board:b.id,author:admin.id,audience:['Finance'],content:'move-file',category:'',version:1});s.files.push({id:'move-file',board:b.id,articleContent:true});s.messages.push({id:'move-message',board:b.id,subject:'move-me'});
+ assert.equal(initialiseLearning(s),true);assert.equal(b.name,'Learning');assert.equal(s.articles[0].board,'knowledge-strategies');assert.equal(s.files.find(f=>f.id==='move-file')!.board,'knowledge-strategies');assert.equal(s.messages.find(m=>m.id==='move-message')!.board,'knowledge-strategies');assert.ok(view(s,viewer).articles.some((a:any)=>a.id==='move-me'));assert.ok(!view(s,editor).articles.some((a:any)=>a.id==='move-me'));
+ s.articles.push({id:'new-learning',board:b.id,author:viewer.id,audience:'all'});assert.equal(initialiseLearning(s),false);assert.equal(s.articles[1].board,b.id);
 });
