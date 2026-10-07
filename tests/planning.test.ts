@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {annual,budgetTemplate,calculate,clone,earnings,entityAccess,manager,validateBudget,validateRules} from '../lib/planning';
+import {annual,budgetTemplate,calculate,clone,earnings,entityAccess,manager,validateBudget,validateRules,teacherTerms} from '../lib/planning';
 import {seedRules} from '../lib/planning-seed';
 import {initial} from '../lib/model';
 test('source prices and channel applicability are preserved',()=>{validateRules(seedRules);assert.equal(seedRules.prices.find(p=>p.id==='A-8-11')!.amount,7700);assert.deepEqual(seedRules.rates.initial['Cold Call'].A,[5,3,0,5]);assert.deepEqual(seedRules.rates.initial.Online.A,[null,null,null,null]);assert.equal(seedRules.rates.initial.Online.C,undefined);});
@@ -220,4 +220,14 @@ test('class teacher earnings include hourly minimum and six-student eligibility'
  assert.equal(earnings(1000*6*12,40,[0,0,0,0],'gross',{students:6,lessons:12}).teacher,108000);
  assert.equal(earnings(5900*12,0,[0,0,0,0],'gross').teacher,0);
  assert.equal(earnings(null,40,[0,0,0,0],'gross',{students:1,lessons:null}).teacher,null);
+});
+
+test('product-specific teacher terms preserve defaults, custom minima, zero and unknown values',()=>{
+ const r=clone(seedRules);assert.deepEqual(teacherTerms(r,'A'),{share:0,minimum:0});assert.equal(teacherTerms(r,'B').minimum,9000);
+ r.teacherMinimum={A:0,B:12000,C:6000,D:0};r.teacher.A=0;validateRules(r);
+ assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:1,lessons:12,minimumPerLesson:teacherTerms(r,'B').minimum}).teacher,144000);
+ assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:1,lessons:12,minimumPerLesson:teacherTerms(r,'C').minimum}).teacher,72000);
+ assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:6,lessons:12,minimumPerLesson:0}).teacher,24000);
+ assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:6,lessons:12,minimumPerLesson:null}).teacher,null);
+ r.teacherMinimum.B=-1;assert.throws(()=>validateRules(r),/Minimum teacher pay/);
 });
