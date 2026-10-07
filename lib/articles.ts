@@ -1,15 +1,18 @@
+import {noticeBoardId,noticeCategories,noticeCategoryAccess,articleCategory,defaultNoticeCategory} from './notice-board';
 import {compareArticles} from './article-order';
 import {State,Row,check,find,role,uid,now,audit} from './model';
 import {businessRoles} from './business-roles';
-export function canReadArticle(s:State,u:Row,a:Row){return !a.deleted&&role(s,u,a.board)>0&&(role(s,u,a.board)>=3||(u.roles||[]).includes('Director')||a.author===u.id||a.audience==='all'||(a.audience||[]).some((r:string)=>(u.roles||[]).includes(r)));}
+export function canReadArticle(s:State,u:Row,a:Row){if(a.board===noticeBoardId){const access=noticeCategoryAccess(s.boards.find(b=>b.id===a.board),u,articleCategory(a));return !a.deleted&&access>0&&(access>=3||a.author===u.id||a.audience==='all'||(u.roles||[]).includes('Director')||(a.audience||[]).some((r:string)=>(u.roles||[]).includes(r)));}return !a.deleted&&role(s,u,a.board)>0&&(role(s,u,a.board)>=3||(u.roles||[]).includes('Director')||a.author===u.id||a.audience==='all'||(a.audience||[]).some((r:string)=>(u.roles||[]).includes(r)));}
 export function articleOperation(s:State,u:Row,p:any){
  const board=find(s,'boards',p.board);check(board.kind==='articles'&&!board.archived,'Article board unavailable',404);
- const level=role(s,u,board.id);check(level>=2);
  const a=p.id?find(s,'articles',p.id):null;
+ const category=p.category|| (a?articleCategory(a):defaultNoticeCategory);
+ const level=board.id===noticeBoardId?noticeCategoryAccess(board,u,a?articleCategory(a):category):role(s,u,board.id);check(level>=2);
+ if(board.id===noticeBoardId&&p.op==='article.save'){check(noticeCategories.includes(category),'Choose a category',400);check(noticeCategoryAccess(board,u,category)>=2,'Editing access required in the destination category');if(category==='Branch')check(typeof p.branch==='string'&&(s.branches||[]).some(b=>b.id===p.branch),'Choose a branch',400);}
  if(a){check(a.board===board.id&&canReadArticle(s,u,a),'Article unavailable',404);check(a.version===p.version,'Article changed. Reopen it before saving.',409);}
  if(p.op==='article.move'){
   check(a&&level>=3,'Manager access required');check(['up','down'].includes(p.direction),'Invalid direction',400);
-  const rows=s.articles.filter(x=>x.board===board.id&&!x.deleted&&!!x.pinned===!!a.pinned).sort(compareArticles),index=rows.findIndex(x=>x.id===a.id),target=index+(p.direction==='up'?-1:1);
+  const rows=s.articles.filter(x=>x.board===board.id&&!x.deleted&&(board.id!==noticeBoardId||articleCategory(x)===articleCategory(a)&&(!p.branch||x.branch===p.branch))&&!!x.pinned===!!a.pinned).sort(compareArticles),index=rows.findIndex(x=>x.id===a.id),target=index+(p.direction==='up'?-1:1);
   check(target>=0&&target<rows.length,'Article is already at the end of this section',400);
   [rows[index],rows[target]]=[rows[target],rows[index]];rows.forEach((x,i)=>{if(x.order!==i){x.order=i;x.version++;}});audit(s,u,board.id,a.id,'Article moved',null,p.direction);return;
  }
@@ -26,6 +29,7 @@ export function articleOperation(s:State,u:Row,p:any){
  const article=a||{id:uid(),board:board.id,author:u.id,createdAt:now(),version:0,pinned:false};
  if(p.pinned!==undefined&&!!p.pinned!==!!article.pinned)check(level>=3,'Only Managers can change Always on Top');
  Object.assign(article,{title,description,publishDate:p.publishDate,tags:[...new Set(p.tags.map((t:string)=>t.trim()))],audience:p.audience==='all'?'all':[...new Set(['Director',...p.audience])],attachments:attachmentIds,attachmentInfo:attachmentIds.map((id:string)=>{const f=find(s,'files',id);return {id:f.id,name:f.name,type:f.type};}),content:f.id,contentType:f.type||'text/html',updatedAt:now(),version:article.version+1});
+ if(board.id===noticeBoardId)Object.assign(article,{category,branch:category==='Branch'?p.branch:''});
  if(level>=3&&p.pinned!==undefined)article.pinned=!!p.pinned;
  if(!a)s.articles.push(article);audit(s,u,board.id,article.id,a?'Article updated':'Article published',null,null);return article;
 }

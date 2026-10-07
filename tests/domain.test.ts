@@ -84,7 +84,7 @@ test('invitation backfill does not reactivate deleted or disabled people',()=>{
 test('independent board permissions and Directors privacy',()=>{const {s,viewer,manager,admin}=setup();assert.equal(role(s,viewer,'board-1'),1);assert.equal(role(s,viewer,'board-3'),2);assert.equal(role(s,viewer,'board-0'),0);assert.equal(view(s,viewer).boards.length,5);assert.equal(view(s,admin).boards.length,8);denied(()=>mutate(s,manager,{op:'board.create',name:'Forbidden'}));denied(()=>mutate(s,manager,{op:'user',id:manager.id,admin:true}));});
 test('Directors members inherit board permissions and are assignable everywhere without system administration',()=>{
  const {s,admin,editor,viewer,t,b}=setup();s.members=s.members.filter(m=>m.user!==editor.id);mutate(s,admin,{op:'member',board:'board-0',user:editor.id,role:'Edit'});
- assert.ok(s.boards.every(board=>role(s,editor,board.id)===2));assert.equal(view(s,editor).tasks.length,s.tasks.length);denied(()=>mutate(s,editor,{op:'user',id:viewer.id,admin:true}));
+ assert.ok(s.boards.filter(board=>board.id!=='knowledge-strategies').every(board=>role(s,editor,board.id)===2));assert.equal(view(s,editor).tasks.length,s.tasks.length);denied(()=>mutate(s,editor,{op:'user',id:viewer.id,admin:true}));
  const snapshot=view(s,viewer);assert.ok(snapshot.users.some((u:any)=>u.id===editor.id));assert.ok(snapshot.members.some((m:any)=>m.board===b&&m.user===editor.id&&m.inherited));assert.ok(!snapshot.boards.some((x:any)=>x.id==='board-0'));
  update(s,admin,t,{assignee:editor.id,team:[editor.id]});const child=mutate(s,admin,{op:'task.create',board:b,parent:t.id,title:'Directors subtask'});update(s,admin,child,{assignee:editor.id,team:[editor.id]});
  const newBoard=mutate(s,admin,{op:'board.create',name:'New board'});assert.equal(role(s,editor,newBoard.id),2);
@@ -93,7 +93,7 @@ test('Directors members inherit board permissions and are assignable everywhere 
 test('pending Directors invitees can be assigned across boards but cannot access work before acceptance',()=>{
  const {s,admin,editor,t,b}=setup();const i=mutate(s,admin,{op:'company.invite',email:'director@example.test',name:'Invited Director'});mutate(s,admin,{op:'member',board:'board-0',email:i.email,role:'View'});const person=s.users.find(u=>u.email===i.email)!;
  update(s,editor,t,{assignee:person.id,team:[person.id]});assert.ok(view(s,editor).members.some((m:any)=>m.board===b&&m.user===person.id));assert.equal(role(s,person,b),0);
- mutate(s,person,{op:'invite.accept',token:i.token});assert.equal(role(s,person,b),1);assert.equal(view(s,person).boards.length,s.boards.length);denied(()=>update(s,person,t,{title:'No editing'}));
+ mutate(s,person,{op:'invite.accept',token:i.token});assert.equal(role(s,person,b),1);assert.equal(view(s,person).boards.length,s.boards.filter(b=>b.id!=='knowledge-strategies').length);denied(()=>update(s,person,t,{title:'No editing'}));
  mutate(s,admin,{op:'user',id:person.id,active:false});assert.equal(role(s,person,b),0);
 });
 test('View can create groups but not tasks',()=>{const {s,viewer,b,g}=setup();mutate(s,viewer,{op:'group.create',board:b,name:'Viewer group'});denied(()=>mutate(s,viewer,{op:'task.create',board:b,group:g,title:'No'}));});
@@ -269,12 +269,12 @@ test('invitation and person details carry admin-selected roles through acceptanc
  mutate(s,admin,{op:'person.edit',kind:'users',id:person.id,name:person.name,roles:['Director']});assert.deepEqual(person.roles,['Director']);assert.deepEqual(i.roles,['Director']);
  assert.throws(()=>mutate(s,viewer,{op:'person.edit',kind:'users',id:viewer.id,name:viewer.name,roles:['Director']}));
 });
-test('Directors always read article boards and every article includes selected roles and attachment metadata',()=>{
+test('migrated Director category grants and article role restrictions preserve attachment access',()=>{
  const {s,admin,viewer}=setup();view(s,admin);viewer.roles=['Director'];s.members=s.members.filter(m=>m.user!==viewer.id);const board=s.boards.find(b=>b.id==='knowledge-strategies')!;
  s.files.push({id:'image',board:board.id,user:admin.id,articleContent:true,type:'image/png',name:'Chart.png'},{id:'video',board:board.id,user:admin.id,articleContent:true,type:'video/mp4',name:'Review.mp4'});
  const p={op:'article.save',board:board.id,title:'Report',description:'',publishDate:'2026-09-23',tags:[],audience:['Finance'],content:'image',attachments:['image','video']};
  const a=mutate(s,admin,p);assert.deepEqual(a.audience,['Director','Finance']);assert.equal(view(s,viewer).articles.length,1);assert.equal(role(s,viewer,board.id),1);assert.equal(a.attachmentInfo[1].name,'Review.mp4');
- viewer.roles=[];assert.equal(view(s,viewer).articles.length,0);const everyone=mutate(s,admin,{...p,audience:'all'});assert.equal(everyone.audience,'all');assert.equal(view(s,viewer).articles.length,0);s.members.push({id:'all-reader',board:board.id,user:viewer.id,role:'View'});assert.deepEqual(view(s,viewer).articles.map((a:any)=>a.id),[everyone.id]);
+ viewer.roles=[];assert.equal(view(s,viewer).articles.length,0);const everyone=mutate(s,admin,{...p,audience:'all'});assert.equal(everyone.audience,'all');assert.equal(view(s,viewer).articles.length,0);mutate(s,admin,{op:'notice.access',category:'Strategies & Plans',version:board.version,user:viewer.id,access:'View'});assert.deepEqual(view(s,viewer).articles.map((a:any)=>a.id),[everyone.id]);
 });
 test('article ordering is manager-only and stays within the pinned or ordinary section',()=>{
  const {s,admin,editor}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-learning')!;s.members.push({id:'order-editor',board:board.id,user:editor.id,role:'Edit'});
@@ -295,4 +295,39 @@ test('Managers can edit article metadata while preserving the author and attachm
 
 test('HTML reports can run the pinned chart library while remaining isolated from portal data',()=>{
  const policy=articlePolicy('text/html');assert.match(policy,/sandbox allow-scripts;/);assert.match(policy,/script-src 'unsafe-inline' https:\/\/cdnjs.cloudflare.com\/ajax\/libs\/Chart.js\/4.4.1\/chart.umd.min.js;/);assert.match(policy,/connect-src 'none'/);assert.ok(!policy.includes('allow-same-origin'));assert.ok(!articlePolicy('application/pdf').includes('allow-scripts'));
+});
+
+test('Notice Board category grants protect article metadata, discussions and management independently',()=>{
+ const {s,admin,viewer,editor}=setup();view(s,admin);const b=s.boards.find(b=>b.id==='knowledge-strategies')!;
+ for(const config of Object.values(b.categoryAccess) as any[])Object.assign(config,{members:{},roles:{}});
+ const grant=(category:string,user:string,access:string|null)=>mutate(s,admin,{op:'notice.access',category,version:b.version,user,access});
+ grant('Finance & Budget',viewer.id,'View');grant('Marketing & Sales',viewer.id,'Manage');grant('Finance & Budget',editor.id,'Edit');
+ s.files.push({id:'notice-file',board:b.id,user:admin.id,articleContent:true,type:'text/html',name:'Notice.html'});
+ const base={op:'article.save',board:b.id,title:'Budget',description:'Private forecast',publishDate:'2026-10-07',tags:['2027'],audience:'all',content:'notice-file',attachments:['notice-file']};
+ const finance=mutate(s,admin,{...base,category:'Finance & Budget'}),hr=mutate(s,admin,{...base,title:'Staff details',category:'HR & Staff Benefit'});
+ s.messages.push({id:'hr-msg',board:b.id,subject:hr.id,body:'Private',user:admin.id,removed:false});s.notifications.push({id:'hr-note',board:b.id,subject:hr.id,user:viewer.id,text:'Private'});
+ assert.deepEqual(view(s,viewer).articles.map((a:any)=>a.id),[finance.id]);assert.ok(!view(s,viewer).messages.some((m:any)=>m.id==='hr-msg'));assert.ok(!view(s,viewer).notifications.some((m:any)=>m.id==='hr-note'));
+ assert.throws(()=>mutate(s,viewer,{op:'article.pin',board:b.id,id:finance.id,version:finance.version,pinned:true}));
+ assert.throws(()=>mutate(s,viewer,{op:'notice.access',category:'Finance & Budget',version:b.version,user:editor.id,access:'Manage'}));
+ assert.throws(()=>mutate(s,viewer,{op:'chat.post',board:b.id,subject:hr.id,body:'No',mentions:[]}));
+ grant('Finance & Budget',viewer.id,null);assert.equal(view(s,viewer).articles.length,0);
+ viewer.roles=['Director'];assert.equal(view(s,viewer).articles.length,0);
+});
+test('Notice Board migration preserves articles and copies existing access only once',async()=>{
+ const {initialiseNoticeBoard,noticeCategories,noticeCategoryAccess}=await import('../lib/notice-board');const {s,viewer}=setup();
+ s.boards.push({id:'knowledge-strategies',name:'BI & Strategies',kind:'articles',version:1,roleAccess:{Finance:'Edit'}});s.members.push({id:'old-member',board:'knowledge-strategies',user:viewer.id,role:'View'});s.articles=[{id:'legacy',board:'knowledge-strategies',title:'Existing',audience:['Marketing'],content:'original'}];
+ assert.equal(initialiseNoticeBoard(s),true);const b=s.boards.find(b=>b.id==='knowledge-strategies')!;assert.equal(b.name,'Notice Board');assert.equal(s.articles[0].category,'Strategies & Plans');assert.deepEqual(s.articles[0].audience,['Marketing']);assert.equal(s.articles[0].content,'original');assert.equal(noticeCategories.length,6);
+ assert.equal(noticeCategoryAccess(b,viewer,'Strategies & Plans'),1);b.categoryAccess['Strategies & Plans'].members={};assert.equal(initialiseNoticeBoard(s),false);assert.equal(noticeCategoryAccess(b,viewer,'Strategies & Plans'),0);
+});
+test('branch administration validates managers, unique names and article branch selections',()=>{
+ const {s,admin,viewer}=setup();view(s,admin);const b=s.boards.find(b=>b.id==='knowledge-strategies')!;
+ assert.throws(()=>mutate(s,viewer,{op:'branch.save',name:'Test Centre',abbreviation:'TC',manager:viewer.id}));
+ mutate(s,admin,{op:'branch.save',name:'Test Centre',abbreviation:'TC',manager:viewer.id});const branch=s.branches[0];assert.equal(branch.manager,viewer.id);
+ assert.throws(()=>mutate(s,admin,{op:'branch.save',name:'Other',abbreviation:'tc',manager:viewer.id}),/unique/);
+ assert.throws(()=>mutate(s,admin,{op:'branch.save',name:'Other',abbreviation:'OT',manager:'missing'}),/manager/);
+ s.files.push({id:'branch-file',board:b.id,user:admin.id,articleContent:true,type:'text/html'});const base={op:'article.save',board:b.id,title:'Branch notice',description:'',publishDate:'2026-10-07',tags:[],audience:'all',content:'branch-file',category:'Branch'};
+ assert.throws(()=>mutate(s,admin,base),/Choose a branch/);assert.throws(()=>mutate(s,admin,{...base,branch:'missing'}),/Choose a branch/);
+ const article=mutate(s,admin,{...base,branch:branch.id});assert.equal(article.branch,branch.id);
+ mutate(s,admin,{op:'branch.save',id:branch.id,version:branch.version,name:'Renamed Centre',abbreviation:'RC',manager:viewer.id});assert.equal(article.branch,branch.id);
+ const changed=mutate(s,admin,{...base,id:article.id,version:article.version,category:'Biz Intelligence',branch:branch.id});assert.equal(changed.branch,'');
 });
