@@ -223,8 +223,8 @@ test('class teacher earnings include hourly minimum and six-student eligibility'
 });
 
 test('product-specific teacher terms preserve defaults, custom minima, zero and unknown values',()=>{
- const r=clone(seedRules);assert.deepEqual(teacherTerms(r,'A'),{share:0,minimum:0});assert.equal(teacherTerms(r,'B').minimum,9000);
- r.teacherMinimum={A:0,B:12000,C:6000,D:0};r.teacher.A=0;validateRules(r);
+ const r=clone(seedRules);assert.deepEqual(teacherTerms(r,'A'),{share:40,minimum:9000});assert.equal(teacherTerms(r,'B').minimum,9000);
+ r.teacherDefaultsVersion=2;r.teacherMinimum={A:0,B:12000,C:6000,D:0};r.teacher.A=0;validateRules(r);
  assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:1,lessons:12,minimumPerLesson:teacherTerms(r,'B').minimum}).teacher,144000);
  assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:1,lessons:12,minimumPerLesson:teacherTerms(r,'C').minimum}).teacher,72000);
  assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:6,lessons:12,minimumPerLesson:0}).teacher,24000);

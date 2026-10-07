@@ -65,7 +65,7 @@ export async function planningAPI(r:Request,user:Row){
    for(const price of prices)check(price.discount===undefined||price.discount===null||Number.isInteger(price.discount)&&price.discount>=0&&price.discount<=1e12,'Invalid dollar discount',400);
    const calculated=calculatePriceTiers(prices);validateRules({...seedRules,prices:calculated});
    data.payload={prices:calculated,...(d.payload.proposalVersion===proposalVersion?{proposalVersion}:{})};
-  }else{validateRules({...d.payload,prices:[]});data.payload={teacher:d.payload.teacher,rates:d.payload.rates,...(d.payload.teacherMinimum!==undefined?{teacherMinimum:d.payload.teacherMinimum}:{})};}
+  }else{validateRules({...d.payload,prices:[]});data.payload={teacher:d.payload.teacher,rates:d.payload.rates,...(d.payload.teacherMinimum!==undefined?{teacherMinimum:d.payload.teacherMinimum,teacherDefaultsVersion:d.payload.teacherDefaultsVersion}:{})};}
  }else{
   check(entities.some(e=>e.id===d.entity_id),'Business entity unavailable',400);
   check(Number.isInteger(d.year)&&d.year>=2000&&d.year<=2200,'Invalid budget year',400);

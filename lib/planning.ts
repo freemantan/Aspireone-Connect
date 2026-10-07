@@ -2,7 +2,7 @@ import {BudgetDriver,deriveLine,validDriver,withKnownDrivers} from './budget-dri
 import {AppError,role,Row,State} from './model';
 export type Entity={id:string;name:string;kind:'branch'|'online'|'coaching'|'company';parent_id:string|null;board_id:string|null;revision:number};
 export type Price={id:string;product:string;level:string;category:string;unit:string;amount:number|null;group?:string;tier?:number;units?:number;previous?:number|null;source?:string;unavailable?:boolean;discount?:number|null;displayOrder?:number};
-export type Rules={prices:Price[];teacher:Record<string,number|null>;teacherMinimum?:Record<string,number|null>;rates:Record<string,Record<string,Record<string,(number|null)[]>>>};
+export type Rules={prices:Price[];teacher:Record<string,number|null>;teacherMinimum?:Record<string,number|null>;teacherDefaultsVersion?:number;rates:Record<string,Record<string,Record<string,(number|null)[]>>>};
 export type Line={id:string;name:string;category:'revenue'|'direct_cost'|'operating_cost'|'other_income'|'tax';method:'manual'|'quantity'|'percent';values:(number|null)[];priceId?:string;baseId?:string;rate:number|null;rateSource?:'custom'|'teacher'|'commission';product?:string;channel?:string;saleType?:string;driver?:BudgetDriver};
 export type Budget={lines:Line[];notes:string;cashflow?:{annualTarget:number|null;openingCash:number|null;payments:(number|null)[];septemberOpening?:number|null;periodPayments?:(number|null)[]}};
 export const products=['A','B','C','D'];
@@ -16,7 +16,7 @@ const text=(s:unknown)=>typeof s==='string'&&!!s.trim()&&s.length<=200;
 export function manager(_s:State,u:Row){return !!u.active&&!u.onboarding&&!u.deleted&&!!u.admin;}
 export function analyst(u:Row){return !!u.active&&!u.onboarding&&!u.deleted&&(!!u.admin||(u.roles||[]).some((r:string)=>['Director','Senior Manager'].includes(r)));}
 export function entityAccess(s:State,u:Row,_e:Entity){if(!u.active||u.onboarding||u.deleted)return 0;return manager(s,u)?3:analyst(u)?2:1;}
-export function teacherTerms(r:Rules,p:string){return {share:!r.teacherMinimum&&['A','D'].includes(p)?0:r.teacher[p],minimum:r.teacherMinimum?r.teacherMinimum[p]:['B','C'].includes(p)?9000:0};}
+export function teacherTerms(r:Rules,p:string){if(r.teacherDefaultsVersion!==2&&['A','B'].includes(p))return {share:40,minimum:9000};return {share:!r.teacherMinimum&&p==='D'?0:r.teacher[p],minimum:r.teacherMinimum?r.teacherMinimum[p]:['A','B','C'].includes(p)?9000:0};}
 export function validateRules(r:Rules){
  fail(r&&Array.isArray(r.prices)&&r.prices.length<=500,'Invalid price list');const ids=new Set<string>();
  for(const p of r.prices){fail(text(p.id)&&!ids.has(p.id),'Price IDs must be unique');ids.add(p.id);fail(products.includes(p.product)&&text(p.level)&&text(p.category)&&text(p.unit)&&number(p.amount)&& (p.amount===null||Number.isInteger(p.amount)),'Enter valid prices in cents or leave unknown prices blank');}
