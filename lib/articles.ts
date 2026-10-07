@@ -13,7 +13,7 @@ export function canReadArticle(s:State,u:Row,a:Row){
  if(u.admin||a.board===learningBoardId||explicitArticleReader(u,a))return true;
  if(a.board===noticeBoardId&&a.legacyNoticeAccess&&configuredNoticeAccess(a.legacyNoticeAccess,u)===0)return false;
  const level=articleLevel(s,u,a);
- return level>0&&(level>=3||a.audience==='all'||(u.roles||[]).includes('Director')||(a.audience||[]).some((r:string)=>(u.roles||[]).includes(r)));
+ return level>0&&(level>=2.5||a.audience==='all'||(u.roles||[]).includes('Director')||(a.audience||[]).some((r:string)=>(u.roles||[]).includes(r)));
 }
 export function canPublishArticle(s:State,u:Row,board:Row,groups:string[]=[]){
  if(!isActivePerson(u)||board.kind!=='articles'||board.archived)return false;
@@ -28,7 +28,7 @@ export function articleOperation(s:State,u:Row,p:any){
  const category=p.category??a?.category??(board.id===noticeBoardId?defaultNoticeCategory:'');
  const groups=p.noticeGroups??(a?articleNoticeGroups(a):[defaultNoticeGroup]);
  const level=a?articleLevel(s,u,a):board.id===noticeBoardId?Math.max(0,...(Array.isArray(groups)?groups:[]).map((g:string)=>noticeGroupAccess(board,u,g))):articleBoardLevel(s,u,board.id);
- if(p.op==='article.delete'){check(a&&(u.admin||a.author===u.id),'Only the author or a system administrator can remove this article',403);check(p.confirm===true,'Confirm deletion',400);a.deleted=true;a.version++;audit(s,u,board.id,a.id,'Article deleted',null,null);return;}
+ if(p.op==='article.delete'){check(a&&(u.admin||a.author===u.id||level>=2.5),'Only the author, an Editor or a Manager can remove this article',403);check(p.confirm===true,'Confirm deletion',400);a.deleted=true;a.version++;audit(s,u,board.id,a.id,'Article deleted',null,null);return;}
  if(p.op==='article.move'){
   check(a&&level>=3,'Manager access required');check(['up','down'].includes(p.direction),'Invalid direction',400);
   if(board.id===noticeBoardId)check(noticeGroups.includes(p.group)&&articleNoticeGroups(a).includes(p.group)&&noticeGroupAccess(board,u,p.group)>=3,'Choose a managed Notice Group',400);
@@ -38,7 +38,7 @@ export function articleOperation(s:State,u:Row,p:any){
  }
  if(p.op==='article.pin'){check(a&&level>=3,'Manager access required');a.pinned=!!p.pinned;a.version++;return a;}
  check(p.op==='article.save','Unknown article action',400);
- check(a?a.author===u.id||level>=3:canPublishArticle(s,u,board,groups),'Publishing permission or article ownership required');
+ check(a?a.author===u.id||level>=2.5:canPublishArticle(s,u,board,groups),'Publishing permission or article ownership required');
  if(board.id===noticeBoardId){
   check(Array.isArray(groups)&&groups.length>0&&groups.every((g:any)=>noticeGroups.includes(g)),'Select at least one Notice Group',400);
   const added=a?groups.filter((g:string)=>!articleNoticeGroups(a).includes(g)):groups;
@@ -48,6 +48,7 @@ export function articleOperation(s:State,u:Row,p:any){
  if(learning){p.audience='all';p.individualAccess=[];}
  const needsBranch=board.id===noticeBoardId&&(groups.includes('Branch')||category==='Branch');
  if(needsBranch)check(typeof p.branch==='string'&&(s.branches||[]).some(b=>b.id===p.branch),'Choose a branch',400);
+ if(a&&!u.admin&&Array.isArray(a.audience)&&a.audience.includes('Director'))check(p.audience==='all'||Array.isArray(p.audience)&&p.audience.includes('Director'),'Director access cannot be unselected');
  const title=typeof p.title==='string'?p.title.trim():'',description=typeof p.description==='string'?p.description.trim():'';
  check(title&&title.length<=200,'Title is required (up to 200 characters)',400);check(description.length<=1500,'Description is too long',400);
  check(Array.isArray(p.tags)&&p.tags.length<=3&&p.tags.every((t:any)=>typeof t==='string'&&t.trim()&&t.length<=40),'Use up to three tags (40 characters each)',400);
@@ -55,7 +56,7 @@ export function articleOperation(s:State,u:Row,p:any){
  check(Array.isArray(individuals)&&individuals.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&!x.deleted&&(x.active&&!x.onboarding||(a?.individualAccess||[]).includes(id)))),'Choose valid individual readers',400);
  check(p.audience==='all'||Array.isArray(p.audience)&&p.audience.every((r:string)=>businessRoles.includes(r))&&(p.audience.length>0||individuals.length>0),'Choose All, roles or individual people',400);
  check(typeof p.publishDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(p.publishDate)&&Number.isFinite(Date.parse(p.publishDate))&&new Date(p.publishDate).toISOString().slice(0,10)===p.publishDate,'Valid publication date required',400);
- const attachmentIds=p.attachments||[p.content];if(a&&a.author!==u.id&&!u.admin)check(JSON.stringify(attachmentIds)===JSON.stringify(a.attachments||[a.content])&&p.content===a.content,'Only the author can replace article attachments',403);
+ const attachmentIds=p.attachments||[p.content];if(a&&a.author!==u.id&&level<2.5)check(JSON.stringify(attachmentIds)===JSON.stringify(a.attachments||[a.content])&&p.content===a.content,'Only the author can replace article attachments',403);
  check(Array.isArray(attachmentIds)&&attachmentIds.length>0&&attachmentIds.length<=50,'Attach between 1 and 50 files',400);
  for(const id of attachmentIds){const attachment=find(s,'files',id);check(attachment.articleContent&&attachment.board===board.id&&(attachment.user===u.id||!!a&&(a.attachments||[a.content]).includes(id))&&!attachment.removed,'Invalid article attachment',400);}
  const f=find(s,'files',p.content||attachmentIds[0]);check(attachmentIds.includes(f.id),'Main content must be an attachment',400);

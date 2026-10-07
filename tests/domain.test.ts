@@ -240,7 +240,7 @@ test('article audience protects content metadata and discussions; author and man
  assert.throws(()=>mutate(s,editor,{op:'article.pin',board:board.id,id:a.id,version:a.version,pinned:true}));
  mutate(s,manager,{op:'article.pin',board:board.id,id:a.id,version:a.version,pinned:true});assert.equal(a.pinned,true);
  assert.throws(()=>mutate(s,manager,{op:'article.save',board:board.id,id:a.id,version:a.version,title:'Changed'}));
- for(const user of [manager])assert.throws(()=>mutate(s,user,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true}),/Only the author or a system administrator/);
+ assert.throws(()=>mutate(s,viewer,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true}));
  assert.ok(!a.deleted);
  assert.throws(()=>mutate(s,admin,{op:'article.delete',board:board.id,id:a.id,version:a.version}),/Confirm deletion/);
  mutate(s,admin,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true});assert.equal(view(s,editor).articles.length,0);
@@ -377,4 +377,27 @@ test('Learning migration moves existing articles, files and discussions once wit
  s.articles.push({id:'move-me',board:b.id,author:admin.id,audience:['Finance'],content:'move-file',category:'',version:1});s.files.push({id:'move-file',board:b.id,articleContent:true});s.messages.push({id:'move-message',board:b.id,subject:'move-me'});
  assert.equal(initialiseLearning(s),true);assert.equal(b.name,'Learning');assert.equal(s.articles[0].board,'knowledge-strategies');assert.equal(s.files.find(f=>f.id==='move-file')!.board,'knowledge-strategies');assert.equal(s.messages.find(m=>m.id==='move-message')!.board,'knowledge-strategies');assert.ok(view(s,viewer).articles.some((a:any)=>a.id==='move-me'));assert.ok(!view(s,editor).articles.some((a:any)=>a.id==='move-me'));
  s.articles.push({id:'new-learning',board:b.id,author:viewer.id,audience:'all'});assert.equal(initialiseLearning(s),false);assert.equal(s.articles[1].board,b.id);
+});
+
+test('article Contributor owns their posts, Editor manages articles, Manager protects Director access',()=>{
+ const {s,admin,viewer,editor,manager}=setup();view(s,admin);const b=s.boards.find(b=>b.id==='knowledge-strategies')!;const group='All Staffs';
+ b.noticeGroupAccess[group]={members:{[viewer.id]:'Edit',[editor.id]:'Editor',[manager.id]:'Manage'},roles:{Director:'View'}};viewer.roles=[];editor.roles=[];manager.roles=[];
+ s.files.push({id:'tier-file',board:b.id,user:viewer.id,articleContent:true,type:'text/html'},{id:'tier-edit-file',board:b.id,user:editor.id,articleContent:true,type:'text/html'});
+ const p={op:'article.save',board:b.id,title:'Contributor post',description:'',publishDate:'2026-10-08',tags:[],category:'Operations',noticeGroups:[group],audience:'all',content:'tier-file'};
+ const a=mutate(s,viewer,p);assert.equal(role(s,editor,b.id),2.5);mutate(s,viewer,{...p,id:a.id,version:a.version,title:'Own edit'});
+ mutate(s,editor,{...p,id:a.id,version:a.version,title:'Editor edit',content:'tier-edit-file'});assert.equal(a.content,'tier-edit-file');assert.equal(a.author,viewer.id);
+ assert.throws(()=>mutate(s,editor,{op:'notice.access',group,version:b.version,grants:{Director:'View'}}));
+ assert.throws(()=>mutate(s,manager,{op:'notice.access',group,version:b.version,grants:{}}),/Director/);
+ mutate(s,manager,{op:'notice.access',group,version:b.version,grants:{Director:'View',Finance:'Editor'}});assert.equal(b.noticeGroupAccess[group].roles.Finance,'Editor');
+ viewer.roles=['Director'];assert.throws(()=>mutate(s,manager,{op:'notice.access',group,version:b.version,user:viewer.id,access:null}),/Director/);viewer.roles=[];
+ mutate(s,editor,{op:'article.delete',board:b.id,id:a.id,version:a.version,confirm:true});assert.equal(a.deleted,true);
+ const own=mutate(s,viewer,p);mutate(s,viewer,{op:'article.delete',board:b.id,id:own.id,version:own.version,confirm:true});assert.equal(own.deleted,true);
+ const other=mutate(s,editor,{...p,content:'tier-edit-file'});assert.throws(()=>mutate(s,viewer,{...p,id:other.id,version:other.version}));assert.throws(()=>mutate(s,viewer,{op:'article.delete',board:b.id,id:other.id,version:other.version,confirm:true}));
+ mutate(s,manager,{op:'article.delete',board:b.id,id:other.id,version:other.version,confirm:true});assert.equal(other.deleted,true);
+});
+test('board Managers cannot revoke a Director role or direct membership',()=>{
+ const {s,admin,viewer,manager,b}=setup();view(s,admin);const board=s.boards.find(x=>x.id===b)!;board.roleAccess={Director:'View'};viewer.roles=['Director'];
+ assert.throws(()=>mutate(s,manager,{op:'board.roles',board:b,version:board.version,grants:{}}),/Director/);
+ assert.throws(()=>mutate(s,manager,{op:'member',board:b,email:viewer.email,role:null}),/Director/);
+ mutate(s,manager,{op:'board.roles',board:b,version:board.version,grants:{Director:'View',Finance:'Editor'}});assert.equal(board.roleAccess.Finance,'Editor');
 });

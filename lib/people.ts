@@ -1,3 +1,4 @@
+import {validAccess,accessLevel} from './access';
 import {learningBoardId} from './learning';
 import {noticeBoardId,noticeGroups,noticeGroupAccess} from './notice-board';
 import {businessRoles,ensureKnowledge} from './business-roles';
@@ -44,8 +45,8 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  if(p.op==='notice.access'){
   const b=find(s,'boards',noticeBoardId);check(!b.archived);check(noticeGroups.includes(p.group),'Choose a Notice Group',400);check(noticeGroupAccess(b,u,p.group)>=3);check(p.version===b.version,'Notice Group changed. Refresh and retry.',409);
   const access=b.noticeGroupAccess[p.group];
-  if(p.grants!==undefined){check(p.grants&&typeof p.grants==='object'&&!Array.isArray(p.grants)&&Object.entries(p.grants).every(([r,a])=>businessRoles.includes(r)&&['View','Edit','Manage'].includes(String(a))),'Invalid role access',400);access.roles=p.grants;}
-  else{const person=s.users.find(x=>x.id===p.user);check(person&&!person.deleted&&person.active,'Choose an active company member',400);check(p.access===null||['View','Edit','Manage'].includes(p.access),'Invalid access',400);delete access.members[person.email];if(p.access===null)delete access.members[person.id];else access.members[person.id]=p.access;}
+  if(p.grants!==undefined){check(p.grants&&typeof p.grants==='object'&&!Array.isArray(p.grants)&&Object.entries(p.grants).every(([r,a])=>businessRoles.includes(r)&&validAccess(String(a))),'Invalid role access',400);check(u.admin||!access.roles?.Director||accessLevel(p.grants.Director)>0,'Managers cannot remove Director access');access.roles=p.grants;}
+  else{const person=s.users.find(x=>x.id===p.user);check(person&&!person.deleted&&person.active,'Choose an active company member',400);check(p.access===null||validAccess(p.access),'Invalid access',400);check(u.admin||!(person.roles||[]).includes('Director')||p.access!==null,'Managers cannot remove Director access');delete access.members[person.email];if(p.access===null)delete access.members[person.id];else access.members[person.id]=p.access;}
   b.version++;audit(s,u,b.id,b.id,'Notice Group access updated',null,{group:p.group});return;
  }
  if(p.op==='branch.save'){
@@ -68,8 +69,8 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  }
  if(p.op==='board.roles'){
   const b=find(s,'boards',p.board);check(role(s,u,b.id)>=3);check(!b.archived);check(p.version===b.version,'Board changed. Refresh and retry.',409);
-  check(p.grants&&typeof p.grants==='object'&&!Array.isArray(p.grants)&&Object.entries(p.grants).every(([r,a])=>businessRoles.includes(r)&&['View','Edit','Manage'].includes(String(a))),'Invalid role access',400);
-  b.roleAccess=p.grants;b.version++;audit(s,u,b.id,b.id,'Role access updated',null,p.grants);return b;
+  check(p.grants&&typeof p.grants==='object'&&!Array.isArray(p.grants)&&Object.entries(p.grants).every(([r,a])=>businessRoles.includes(r)&&validAccess(String(a))),'Invalid role access',400);
+  check(u.admin||!b.roleAccess?.Director||accessLevel(p.grants.Director)>0,'Managers cannot remove Director access');b.roleAccess=p.grants;b.version++;audit(s,u,b.id,b.id,'Role access updated',null,p.grants);return b;
  }
  if(p.op==='group.move'){
   const group=find(s,'groups',p.id),target=find(s,'groups',p.target);
@@ -144,7 +145,8 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const board=find(s,'boards',p.board);check(role(s,u,board.id)>=3);check(!board.archived,'Restore the board before making changes',400);
   const email=p.email?emailOf(p.email):find(s,'users',p.user).email;
   const person=s.users.find(x=>x.email===email),invite=pending(s,email);
-  if(p.role){check(['View','Edit','Manage'].includes(p.role),'Invalid role',400);check((person&&person.active&&!person.onboarding)||invite,'Choose an accepted or invited company member',400);check(!person||person.active,'Account is inactive',400);}
+  if(p.role){check(validAccess(p.role),'Invalid role',400);check((person&&person.active&&!person.onboarding)||invite,'Choose an accepted or invited company member',400);check(!person||person.active,'Account is inactive',400);}
+  check(u.admin||!(person?.roles||[]).includes('Director')||!!p.role,'Managers cannot remove Director access');
   const matches=(m:Row)=>m.board===board.id&&(m.pendingEmail===email||(person&&m.user===person.id));
   const prev=s.members.find(matches);s.members=s.members.filter(m=>!matches(m));
   // Removing access also invalidates legacy board-specific links for this board.

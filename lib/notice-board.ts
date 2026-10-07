@@ -1,3 +1,4 @@
+import {accessLevel} from './access';
 import type {State,Row} from './model';
 export const noticeBoardId='knowledge-strategies';
 export const noticeCategories=['Biz Intelligence','Strategies & Plans','Marketing & Sales','Finance & Budget','HR & Staff Benefit','Branch','Operations','Feedback'];
@@ -9,7 +10,7 @@ export const canPublishByRole=(u:Row)=>isActivePerson(u)&&(!!u.admin||(u.roles||
 export const explicitArticleReader=(u:Row,a:Row)=>!a.deleted&&(a.author===u.id||(a.individualAccess||[]).includes(u.id));
 export const articleNoticeGroups=(a:any):string[]=>Array.isArray(a.noticeGroups)?a.noticeGroups:[a.category==='Branch'?'Branch':defaultNoticeGroup];
 export const defaultNoticeCategory='Strategies & Plans';
-const level=(value:string)=>({View:1,Edit:2,Manage:3}[value as 'View']||0);
+const level=accessLevel;
 export const articleCategory=(article:any)=>article.category||defaultNoticeCategory;
 export function configuredNoticeAccess(config:any,user:Row){
  if(!isActivePerson(user))return 0;if(user.admin)return 4;

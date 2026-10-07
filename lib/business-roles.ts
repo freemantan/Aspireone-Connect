@@ -4,7 +4,8 @@ import type {State,Row} from './model';
 export const businessRoles=['Business Manager','Subject Head','Customer Relationship','Marketing','HR','Technology','Finance','Online Business','AHCI','Manager','Senior Manager','Franchisee','Director','Shareholder'];
 export const roleLabel=(role:string)=>role==='HR'?'Human Resource':role;
 export const roleLabels=(roles:string[])=>businessRoles.filter(role=>roles.includes(role)).map(roleLabel).join(', ');
-export const accessLevel=(value:string)=>({View:1,Edit:2,Manage:3}[value as 'View']||0);
+import {accessLevel} from './access';
+export {accessLevel} from './access';
 export function roleAccess(s:State,u:Row,board:string){
  const grants=s.boards.find(b=>b.id===board)?.roleAccess||{};
  return Math.max(board.startsWith('knowledge-')&&(u.roles||[]).includes('Director')?1:0,...(u.roles||[]).map((r:string)=>accessLevel(grants[r])));
