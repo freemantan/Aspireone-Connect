@@ -211,3 +211,13 @@ test('approved JC prices retain rounded units, block totals and existing prices'
  assert.deepEqual(jc.map(p=>p.amount),expected);
  assert.deepEqual(jc.map(p=>p.amount!*p.units!),[7500,28520,81000,153120,6600,25080,71280,134640]);
 });
+
+test('class teacher earnings include hourly minimum and six-student eligibility',()=>{
+ const one=earnings(5900*12,40,[0,0,0,0],'gross',{students:1,lessons:12});assert.equal(one.teacher,108000);assert.equal(one.retained,-37200);
+ assert.equal(earnings(5900,40,[0,0,0,0],'gross',{students:1,lessons:1}).teacher,9000);
+ assert.equal(earnings(9700*5*12,40,[0,0,0,0],'gross',{students:5,lessons:12}).teacher,108000);
+ assert.equal(earnings(5900*6*12,40,[0,0,0,0],'gross',{students:6,lessons:12}).teacher,169920);
+ assert.equal(earnings(1000*6*12,40,[0,0,0,0],'gross',{students:6,lessons:12}).teacher,108000);
+ assert.equal(earnings(5900*12,0,[0,0,0,0],'gross').teacher,0);
+ assert.equal(earnings(null,40,[0,0,0,0],'gross',{students:1,lessons:null}).teacher,null);
+});
