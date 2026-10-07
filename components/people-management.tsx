@@ -34,7 +34,7 @@ export function BoardPeople({s,board,act}:any){
  const options=(s.directory||[]).filter((p:any)=>!members.some((m:any)=>emailFor(m)===p.email));
  const run=async(p:any)=>{setBusy(true);try{await act(p);return true;}catch{return false;}finally{setBusy(false);}};
  return <div className="detail-body"><p>Add accepted or invited people to this board. New company invitations are sent from Administration.</p>
- <form onSubmit={async e=>{e.preventDefault();if(await run({op:'member',board:board.id,email,role:access}))setEmail('');}}>
+ <form className="member-access-form" onSubmit={async e=>{e.preventDefault();if(await run({op:'member',board:board.id,email,role:access}))setEmail('');}}>
  <label>Person<select required value={email} onChange={e=>setEmail(e.target.value)}><option value="">Choose a person</option>{options.map((p:any)=><option key={p.email} value={p.email}>{p.name} — {p.email} · {p.status}</option>)}</select></label>
  <label>Board access<select value={access} onChange={e=>setAccess(e.target.value)}>{accessOptions.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
  <button className="primary" disabled={busy||!email||board.archived}>Add member</button></form>
