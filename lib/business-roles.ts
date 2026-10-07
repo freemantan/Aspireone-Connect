@@ -1,5 +1,7 @@
 import type {State,Row} from './model';
-export const businessRoles=['Shareholder','Director','Franchisee','Business Manager','Subject Head','Customer Relationship','Finance','HR','Manager','Senior Manager','Marketing'];
+export const businessRoles=['Business Manager','Subject Head','Customer Relationship','Marketing','HR','Technology','Finance','Manager','Senior Manager','Franchisee','Director','Shareholder'];
+export const roleLabel=(role:string)=>role==='HR'?'Human Resource':role;
+export const roleLabels=(roles:string[])=>businessRoles.filter(role=>roles.includes(role)).map(roleLabel).join(', ');
 export const accessLevel=(value:string)=>({View:1,Edit:2,Manage:3}[value as 'View']||0);
 export function roleAccess(s:State,u:Row,board:string){
  const grants=s.boards.find(b=>b.id===board)?.roleAccess||{};
