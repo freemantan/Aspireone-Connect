@@ -99,3 +99,15 @@ test('member access validates active users and preserves administrator access',a
  assert.equal(canViewPlan({payload:{memberAccess:null}}, {id:'inactive',active:false,admin:true}),false);
  assert.equal(canViewPlan({payload:{memberAccess:[]}},users[0]),false);
 });
+
+test('membership control saves only access on the saved plan and rejects stale revisions',async()=>{
+ const {planningAPI,settingsId}=await import('../lib/planning-api');
+ const state=initial();ensureKnowledge(state);const u={id:'admin-members',active:true,admin:true};state.users.push(u,{id:'viewer',active:true});let saved:any;
+ const old={id:settingsId,revision:3,name:'Prices',status:'draft',effective_date:'2027-01-01',payload:{prices:[{id:'original',amount:100}],memberAccess:null}};
+ globalThis.fetch=async(url,opts)=>{const path=new URL(String(url)).pathname;
+ if(path.endsWith('ao_load'))return Response.json({state,revision:1});if(path.endsWith('ao_commit'))return Response.json(true);
+ if(path.endsWith('ao_plan_entities'))return Response.json([]);if(path.endsWith('ao_plan_prices'))return Response.json([old]);if(path.endsWith('ao_plan_commissions'))return Response.json([]);
+ if(path.endsWith('ao_planning_save')){saved=JSON.parse(String(opts?.body));return Response.json({...saved.p_data,id:settingsId,revision:4});}throw Error('Unexpected request');};
+ const request=(revision=3,members:any=['viewer'])=>new Request('https://portal.example/api/planning',{method:'POST',body:JSON.stringify({action:'members',kind:'prices',id:settingsId,revision,members,data:{name:'Forged',payload:{prices:[]}}})});
+ try{await planningAPI(request(),u);assert.equal(saved.p_data.name,'Prices');assert.equal(saved.p_data.status,'draft');assert.deepEqual(saved.p_data.payload.prices,old.payload.prices);assert.deepEqual(saved.p_data.payload.memberAccess,['viewer']);await assert.rejects(planningAPI(request(2),u),/Another administrator/);await assert.rejects(planningAPI(request(3,['unknown']),u),/Choose active members/);}finally{globalThis.fetch=realFetch;}
+});
