@@ -1,6 +1,6 @@
 import type {State,Row} from './model';
 export const noticeBoardId='knowledge-strategies';
-export const noticeCategories=['Biz Intelligence','Strategies & Plans','Marketing & Sales','Finance & Budget','HR & Staff Benefit','Branch','Operation','Feedback'];
+export const noticeCategories=['Biz Intelligence','Strategies & Plans','Marketing & Sales','Finance & Budget','HR & Staff Benefit','Branch','Operations','Feedback'];
 export const noticeGroups=['Business Managers','Subject Heads','Customer Relationship','Coaches','All Staffs','Branch'];
 export const defaultNoticeGroup='All Staffs';
 export const publishingRoles=['Manager','Business Manager','Senior Manager','Director'];
@@ -19,7 +19,7 @@ export function noticeGroupAccess(board:any,user:Row,group:string){return notice
 export const noticeArticleLevel=(board:any,user:Row,article:any)=>Math.max(0,...articleNoticeGroups(article).map(g=>noticeGroupAccess(board,user,g)));
 export const noticeAccess=(s:State,u:Row)=>!isActivePerson(u)?0:Math.max(canPublishByRole(u)?2:0,(s.articles||[]).some(a=>a.board===noticeBoardId&&explicitArticleReader(u,a))?1:0,...noticeGroups.map(g=>noticeGroupAccess(s.boards.find(b=>b.id===noticeBoardId),u,g)));
 export function initialiseNoticeBoard(s:State){
- let changed=false;if(!s.branches){s.branches=[];changed=true;}
+ let changed=false;for(const article of s.articles||[])if(article.category==='Operation'){article.category='Operations';article.version++;changed=true;}if(!s.branches){s.branches=[];changed=true;}
  const board=s.boards.find(b=>b.id===noticeBoardId);if(!board||board.noticeVersion>=2)return changed;
  if(!board.noticeVersion){
  const members:Record<string,string>={},roles:Record<string,string>={Director:'View'};

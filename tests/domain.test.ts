@@ -345,7 +345,7 @@ test('each publishing role can publish to multiple Notice Groups but cannot mana
  const {publishingRoles,articleNoticeGroups}=await import('../lib/notice-board');
  for(const publishingRole of publishingRoles){const {s,admin,viewer}=setup();view(s,admin);const board=s.boards.find(b=>b.id==='knowledge-strategies')!;viewer.roles=[publishingRole];s.members=s.members.filter(m=>m.user!==viewer.id);for(const config of Object.values(board.noticeGroupAccess) as any[])Object.assign(config,{members:{},roles:{}});
  s.files.push({id:'publisher-file',board:board.id,user:viewer.id,articleContent:true,type:'text/html'});
- const base={op:'article.save',board:board.id,title:'New notice',description:'',publishDate:'2026-10-07',tags:[],category:'Operation',noticeGroups:['Business Managers','Coaches'],audience:'all',content:'publisher-file'};
+ const base={op:'article.save',board:board.id,title:'New notice',description:'',publishDate:'2026-10-07',tags:[],category:'Operations',noticeGroups:['Business Managers','Coaches'],audience:'all',content:'publisher-file'};
  const a=mutate(s,viewer,base);assert.deepEqual(articleNoticeGroups(a),['Business Managers','Coaches']);assert.ok(view(s,viewer).articles.some((x:any)=>x.id===a.id));
  assert.throws(()=>mutate(s,viewer,{op:'notice.access',group:'Coaches',version:board.version,user:viewer.id,access:'Manage'}));
  viewer.roles=[];mutate(s,viewer,{...base,id:a.id,version:a.version,title:'Owner edit',category:'Feedback'});assert.equal(a.title,'Owner edit');
