@@ -8,7 +8,7 @@ export function canViewPlan(record:any,user:Row){
 }
 export function validateMemberAccess(value:unknown,users:Row[]){
  if(value===undefined||value===null)return [];
- if(!Array.isArray(value)||value.some(id=>typeof id!=='string'||!users.some(u=>u.id===id&&u.active&&!u.deleted&&!u.onboarding)))throw Error('Choose active members for plan access');
+ if(!Array.isArray(value)||value.some(id=>typeof id!=='string'||!users.some(u=>u.id===id&&u.active&&!u.deleted)))throw Error('Choose active members for plan access');
  return [...new Set(value)];
 }
 

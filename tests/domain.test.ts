@@ -401,3 +401,14 @@ test('board Managers cannot revoke a Director role or direct membership',()=>{
  assert.throws(()=>mutate(s,manager,{op:'member',board:b,email:viewer.email,role:null}),/Director/);
  mutate(s,manager,{op:'board.roles',board:b,version:board.version,grants:{Director:'View',Finance:'Editor'}});assert.equal(board.roleAccess.Finance,'Editor');
 });
+
+test('pending invitees can receive article, group, plan and branch assignments without early access',async()=>{
+ const {canReadArticle}=await import('../lib/articles');const {canViewPlan,validateMemberAccess}=await import('../lib/planning-access');const {s,admin}=setup();view(s,admin);
+ const invite=mutate(s,admin,{op:'company.invite',email:'pending-access@example.test',name:'Pending access'});invite.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===invite.email)!;
+ const board=s.boards.find(b=>b.id==='knowledge-strategies')!;assert.ok(view(s,admin).noticePeople.some((u:any)=>u.id===person.id&&u.onboarding));
+ mutate(s,admin,{op:'notice.access',group:'Coaches',version:board.version,user:person.id,access:'View'});
+ mutate(s,admin,{op:'branch.save',name:'Pending manager branch',abbreviation:'PMB',manager:person.id});assert.equal(s.branches[0].manager,person.id);
+ s.files.push({id:'pending-reader-file',board:board.id,user:admin.id,articleContent:true});const a=mutate(s,admin,{op:'article.save',board:board.id,title:'Assigned before acceptance',description:'',publishDate:'2026-10-08',tags:[],category:'Operations',noticeGroups:['Coaches'],audience:[],individualAccess:[person.id],content:'pending-reader-file'});
+ const plan={payload:{memberAccess:validateMemberAccess([person.id],s.users)}};assert.equal(canViewPlan(plan,person),false);assert.equal(canReadArticle(s,person,a),false);assert.equal(role(s,person,board.id),0);
+ mutate(s,person,{op:'invite.accept',token:invite.token});assert.equal(canReadArticle(s,person,a),true);assert.equal(canViewPlan(plan,person),true);assert.equal(role(s,person,board.id),1);assert.equal(s.branches[0].manager,person.id);
+});

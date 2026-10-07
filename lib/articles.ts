@@ -53,7 +53,7 @@ export function articleOperation(s:State,u:Row,p:any){
  check(title&&title.length<=200,'Title is required (up to 200 characters)',400);check(description.length<=1500,'Description is too long',400);
  check(Array.isArray(p.tags)&&p.tags.length<=3&&p.tags.every((t:any)=>typeof t==='string'&&t.trim()&&t.length<=40),'Use up to three tags (40 characters each)',400);
  const individuals=p.individualAccess??a?.individualAccess??[];
- check(Array.isArray(individuals)&&individuals.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&!x.deleted&&(x.active&&!x.onboarding||(a?.individualAccess||[]).includes(id)))),'Choose valid individual readers',400);
+ check(Array.isArray(individuals)&&individuals.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&!x.deleted&&(x.active||(a?.individualAccess||[]).includes(id)))),'Choose valid individual readers',400);
  check(p.audience==='all'||Array.isArray(p.audience)&&p.audience.every((r:string)=>businessRoles.includes(r))&&(p.audience.length>0||individuals.length>0),'Choose All, roles or individual people',400);
  check(typeof p.publishDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(p.publishDate)&&Number.isFinite(Date.parse(p.publishDate))&&new Date(p.publishDate).toISOString().slice(0,10)===p.publishDate,'Valid publication date required',400);
  const attachmentIds=p.attachments||[p.content];if(a&&a.author!==u.id&&level<2.5)check(JSON.stringify(attachmentIds)===JSON.stringify(a.attachments||[a.content])&&p.content===a.content,'Only the author can replace article attachments',403);
