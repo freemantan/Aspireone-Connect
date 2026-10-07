@@ -40,7 +40,7 @@ test('every nonadministrator is denied persistence, including directors and seni
 test('readers and analysts see only publication snapshots, never draft values or names',async()=>{
  const {planningAPI,settingsId}=await import('../lib/planning-api');const {seedRules}=await import('../lib/planning-seed');
  for(const roles of [[],['Director'],['Senior Manager']]){const state=initial();ensureKnowledge(state);const u={id:'reader',active:true,roles};state.users.push(u);
- const row=(payload:any)=>({id:settingsId,name:'SECRET DRAFT',payload:{secret:true},revision:9,published_at:'2026-09-25',published_data:{name:'Public',effective_date:'2027-01-01',payload}});
+ const row=(payload:any)=>({id:settingsId,name:'SECRET DRAFT',payload:{secret:true,memberAccess:[u.id]},revision:9,published_at:'2026-09-25',published_data:{name:'Public',effective_date:'2027-01-01',payload}});
  globalThis.fetch=async(url)=>{const path=new URL(String(url)).pathname;if(path.endsWith('ao_load'))return Response.json({state,revision:1});if(path.endsWith('ao_commit'))return Response.json(true);if(path.endsWith('ao_plan_entities'))return Response.json([{id:'c0000000-0000-4000-8000-000000000001'},{id:'c0000000-0000-4000-8000-000000000002'},{id:'excluded'}]);if(path.endsWith('ao_plan_prices'))return Response.json([row({prices:seedRules.prices})]);if(path.endsWith('ao_plan_commissions'))return Response.json([row({teacher:seedRules.teacher,rates:seedRules.rates})]);if(path.endsWith('ao_plan_budgets'))return Response.json([row({lines:[]}),{id:'unpublished',payload:{secret:true}}]);throw Error('Unexpected request');};
  try{const data=await planningAPI(new Request('https://portal.example/api/planning'),u);assert.equal(data.entities.length,2);assert.equal(data.manage,false);assert.equal(data.canAnalyze,roles.length>0);assert.equal(data.budgets.length,1);assert.ok(!JSON.stringify(data).includes('SECRET'));assert.ok(!JSON.stringify(data).includes('secret'));assert.equal(data.prices.revision,undefined);}finally{globalThis.fetch=realFetch;}}
 });
@@ -72,7 +72,7 @@ test('budget saves retain cashflow inputs and derive cached amounts from validat
 test('plan access revocations hide publications and dependent budget snapshots',async()=>{
  const {planningAPI,settingsId}=await import('../lib/planning-api');const {seedRules}=await import('../lib/planning-seed');
  const state=initial();ensureKnowledge(state);const u={id:'restricted-reader',active:true,roles:[]};state.users.push(u);
- let priceAccess:any=null,commissionAccess:any=null,budgetAccess:any=null;let roleAccess:any={};
+ let priceAccess:any=[u.id],commissionAccess:any=[u.id],budgetAccess:any=[u.id];let roleAccess:any={};
  const row=(payload:any,memberAccess:any)=>({id:settingsId,payload:{memberAccess,roleAccess},published_data:{name:'Published',payload:{...payload,memberAccess:null}}});
  globalThis.fetch=async(url)=>{const path=new URL(String(url)).pathname;
  if(path.endsWith('ao_load'))return Response.json({state,revision:1});if(path.endsWith('ao_commit'))return Response.json(true);
@@ -127,4 +127,14 @@ test('plan role grants follow current roles and never override account restricti
  assert.throws(()=>validatePlanRoleAccess({Director:'Manage'}));
  assert.throws(()=>validatePlanRoleAccess({Unknown:'View'}));
  assert.throws(()=>validatePlanRoleAccess(['Director']));
+});
+
+
+test('missing or legacy all-member settings never grant implicit plan access',async()=>{
+ const {canViewPlan,validateMemberAccess}=await import('../lib/planning-access');
+ const u={id:'reader',active:true,roles:['Director']};
+ for(const record of [undefined,{}, {payload:{}},{payload:{memberAccess:null}},{payload:{memberAccess:[]}}])assert.equal(canViewPlan(record,u),false);
+ assert.equal(canViewPlan({payload:{memberAccess:null,roleAccess:{Director:'View'}}},u),true);
+ assert.equal(canViewPlan({payload:{memberAccess:['reader']}},u),true);
+ assert.deepEqual(validateMemberAccess(null,[u]),[]);assert.deepEqual(validateMemberAccess(undefined,[u]),[]);
 });

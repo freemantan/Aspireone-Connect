@@ -11,7 +11,7 @@ const tables={prices:'ao_plan_prices',commissions:'ao_plan_commissions',budget:'
 export const settingsId='c0000000-0000-4000-8000-000000000003';
 async function rows(table:string,filter=''){return (await supabase('/rest/v1/'+table+'?select=*'+filter)).json() as Promise<any[]>;}
 // Readers receive only the last published snapshot, never a working draft.
-export function publishedRecord(row:any){return row?.published_data?{...row.published_data,id:row.id,status:'published',published_at:row.published_at,payload:{...row.published_data.payload,memberAccess:row.payload?.memberAccess??null,roleAccess:row.payload?.roleAccess||{}}}:null;}
+export function publishedRecord(row:any){return row?.published_data?{...row.published_data,id:row.id,status:'published',published_at:row.published_at,payload:{...row.published_data.payload,memberAccess:row.payload?.memberAccess??[],roleAccess:row.payload?.roleAccess||{}}}:null;}
 export async function planningAPI(r:Request,user:Row){
  const {state}=await load(),u=find(state,'users',user.id);check(u.active&&!u.onboarding&&!u.deleted);
  const manage=manager(state,u),canAnalyze=analyst(u);
