@@ -1,4 +1,4 @@
-import {noticeBoardId,noticeCategories,noticeCategoryAccess} from './notice-board';
+import {noticeBoardId,noticeGroups,noticeGroupAccess} from './notice-board';
 import {businessRoles,ensureKnowledge} from './business-roles';
 import {canReadArticle,articleOperation} from './articles';
 import {State,Row,check,find,role,uid,now,audit,legacyMutate,legacyView,boardMemberships} from './model';
@@ -23,7 +23,7 @@ export function workspaceView(s:State,u:Row){
  v.pendingInvitations.push(...s.invites.filter(i=>!i.board&&i.email===u.email&&i.state==='pending'&&i.expires>now()).map(i=>({id:i.id,token:i.token,boardName:'AspireOne Connect',role:'Company member',expires:i.expires})));
  if(!u.admin){v.users=v.users.map(({mobile,...person}:Row)=>person);if(v.me.id===u.id)v.me.mobile=u.mobile;}
  v.businessRoles=businessRoles;v.branches=s.branches||[];
- if(role(s,u,noticeBoardId)>0)v.noticePeople=s.users.filter(p=>p.active&&!p.deleted&&!p.onboarding).map(p=>({id:p.id,name:p.name,email:p.email,abbreviation:p.abbreviation,roles:p.roles||[],admin:!!p.admin,active:true}));
+ if(s.boards.some(b=>b.kind==='articles'&&role(s,u,b.id)>0))v.noticePeople=s.users.filter(p=>p.active&&!p.deleted&&!p.onboarding).map(p=>({id:p.id,name:p.name,email:p.email,abbreviation:p.abbreviation,roles:p.roles||[],admin:!!p.admin,active:true}));
  v.articles=(s.articles||[]).filter(a=>canReadArticle(s,u,a));
  for(const a of v.articles){if(!v.users.some((x:Row)=>x.id===a.author)){const author=s.users.find(x=>x.id===a.author);if(author)v.users.push({id:author.id,name:author.name,abbreviation:author.abbreviation,active:author.active});}}
  const articleIds=new Set((s.articles||[]).map(a=>a.id)),visible=new Set(v.articles.map((a:Row)=>a.id));
@@ -41,11 +41,11 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  check(u.active);ensureKnowledge(s);
  if(p.op?.startsWith('article.'))return articleOperation(s,u,p);
  if(p.op==='notice.access'){
-  const b=find(s,'boards',noticeBoardId);check(!b.archived);check(noticeCategories.includes(p.category),'Choose a category',400);check(noticeCategoryAccess(b,u,p.category)>=3);check(p.version===b.version,'Category changed. Refresh and retry.',409);
-  const access=b.categoryAccess[p.category];
+  const b=find(s,'boards',noticeBoardId);check(!b.archived);check(noticeGroups.includes(p.group),'Choose a Notice Group',400);check(noticeGroupAccess(b,u,p.group)>=3);check(p.version===b.version,'Notice Group changed. Refresh and retry.',409);
+  const access=b.noticeGroupAccess[p.group];
   if(p.grants!==undefined){check(p.grants&&typeof p.grants==='object'&&!Array.isArray(p.grants)&&Object.entries(p.grants).every(([r,a])=>businessRoles.includes(r)&&['View','Edit','Manage'].includes(String(a))),'Invalid role access',400);access.roles=p.grants;}
   else{const person=s.users.find(x=>x.id===p.user);check(person&&!person.deleted&&person.active,'Choose an active company member',400);check(p.access===null||['View','Edit','Manage'].includes(p.access),'Invalid access',400);delete access.members[person.email];if(p.access===null)delete access.members[person.id];else access.members[person.id]=p.access;}
-  b.version++;audit(s,u,b.id,b.id,'Category access updated',null,{category:p.category});return;
+  b.version++;audit(s,u,b.id,b.id,'Notice Group access updated',null,{group:p.group});return;
  }
  if(p.op==='branch.save'){
   check(u.admin);const name=typeof p.name==='string'?p.name.trim():'',abbreviation=typeof p.abbreviation==='string'?p.abbreviation.trim():'';
@@ -55,7 +55,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const old=p.id?find(s,'branches',p.id):null;if(old)check(p.version===old.version,'Branch changed. Refresh and retry.',409);
   const branch=old||{id:uid(),version:0};Object.assign(branch,{name,abbreviation,manager:p.manager,version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
  }
- if(p.board===noticeBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Manage member access within a Notice Board category',400);
+ if(p.board===noticeBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Manage member access within a Notice Group',400);
 
  if(p.op==='roles.assign'){
   check(u.admin);
