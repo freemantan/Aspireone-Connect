@@ -46,3 +46,7 @@ Edit Class starts with Find A Class: zone, one permitted branch, one level, subj
 Edit Class Search now applies branch, level, subjects, year/term and optional coach criteria to displayed results. Coach accepts case-insensitive names or initials and offers an autocomplete list. Disabled Search explains which selection is missing; empty branch/term and no-match cases provide explicit messages. Recorded deleted classes remain available through the same filters for restoration.
 
 The weekly display now uses the same Level / Subject rows and Monday–Sunday columns as Find A Class. Time appears inside each class card; the time-axis and slot buttons are removed. Move/Copy use the class details' day/start/end controls. Dragging a class to another weekday preserves its original time and still requires review/save.
+
+## Compact period filters and subject selection
+
+Edit Class keeps Level in its existing half-width position. Academic year and Term share the other half in a compact two-column group. Find A Class and Edit Class begin with no subjects selected; All subjects selects/deselects the full list and becomes unchecked when any one subject is unchecked. Search is enabled after at least one subject is selected.
