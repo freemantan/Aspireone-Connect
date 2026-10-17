@@ -2,7 +2,8 @@
 import {createRequire} from 'node:module';import fs from 'node:fs';import assert from 'node:assert/strict';
 const require=createRequire(import.meta.url);const {PGlite}=require(process.env.SCHEDULE_PGLITE||'@electric-sql/pglite');const db=new PGlite();
 const root=new URL('../',import.meta.url);await db.exec("create role anon;create role authenticated;create role service_role;create table ao_workspace(id integer primary key,state jsonb);");await db.exec(fs.readFileSync(new URL('deployment/supabase-schedules.sql',root),'utf8'));await db.exec(fs.readFileSync(new URL('deployment/supabase-schedule-editing.sql',root),'utf8'));
-const users=[{id:'admin',active:true,admin:true},{id:'editor',active:true},{id:'manager',active:true},{id:'viewer',active:true},{id:'inactive',active:false},{id:'invited',active:true,onboarding:true}];await db.query('insert into ao_workspace values(1,$1)',[JSON.stringify({users})]);await db.exec("insert into ao_schedule_zones values('central','Central');insert into ao_schedule_branches(id,name,zone_id,contact_evidence) values('AV','Alexandra Village','central','[]'),('US','Novena Thomson','central','[]');");
+await db.exec(fs.readFileSync(new URL('deployment/supabase-scheduling-v2.sql',root),'utf8'));
+const users=[{id:'admin',active:true,admin:true},{id:'editor',active:true},{id:'manager',active:true},{id:'viewer',active:true,roles:['Customer Relationship']},{id:'inactive',active:false},{id:'invited',active:true,onboarding:true}];await db.query('insert into ao_workspace values(1,$1)',[JSON.stringify({users})]);await db.exec("insert into ao_schedule_zones values('central','Central');insert into ao_schedule_branches(id,name,zone_id,contact_evidence) values('AV','Alexandra Village','central','[]'),('US','Novena Thomson','central','[]');");
 const call=async(name,args)=>(await db.query(`select public.${name}(${args.map((_,i)=>'$'+(i+1)).join(',')}) result`,args)).rows[0].result;
 const denied=async(fn,pattern)=>assert.rejects(fn,pattern);
 await call('ao_schedule_member_save',['admin','editor','AV','Edit',0]);await call('ao_schedule_member_save',['admin','manager','AV','Manage',0]);
@@ -16,5 +17,17 @@ const viewer=await call('ao_schedule_catalogue',['invited']).then(()=>null).catc
 await call('ao_schedule_save',['editor',first.id,2,{...data,status:'discontinued'}]);const discontinued=await call('ao_schedule_catalogue',['editor']);assert.equal(discontinued.data.length,0);assert.equal(discontinued.records.length,1);assert.equal(discontinued.records[0].status,'discontinued');
 await call('ao_schedule_member_save',['manager','viewer','AV','View',1]);await denied(()=>call('ao_schedule_save',['viewer',null,0,data]),/FORBIDDEN/);
 const audits=(await db.query('select count(*)::int n from ao_schedule_audit')).rows[0].n;assert.equal(audits,3);
+await denied(()=>call('ao_schedule_global_member_save',['manager','user','editor','Manage',0]),/FORBIDDEN/);
+await call('ao_schedule_global_member_save',['admin','role','Customer Relationship','Manage',0]);
+assert.equal(await call('ao_schedule_access',['viewer','US',3]),3);
+await call('ao_schedule_member_save',['viewer','editor','US','Edit',0]);
+assert.equal(await call('ao_schedule_access',['editor','US',2]),2);
+const globalCatalogue=await call('ao_schedule_catalogue',['viewer']);assert.equal(globalCatalogue.canManageAll,true);assert(globalCatalogue.businessRoles.includes('Customer Relationship'));assert.equal(globalCatalogue.globalMembers.length,1);
+await denied(()=>call('ao_schedule_global_member_save',['admin','role','Invented','Manage',0]),/INVALID_ROLE/);
+await denied(()=>call('ao_schedule_global_member_save',['admin','role','Customer Relationship','Edit',0]),/CONFLICT/);
+await call('ao_schedule_global_member_save',['admin','role','Customer Relationship','None',1]);await denied(()=>call('ao_schedule_member_save',['viewer','manager','US','Manage',0]),/FORBIDDEN/);
+await call('ao_schedule_global_member_save',['admin','user','editor','Manage',0]);assert.equal(await call('ao_schedule_access',['editor','US',3]),3);
+await call('ao_schedule_global_member_save',['editor','user','manager','Edit',0]);assert.equal(await call('ao_schedule_access',['manager','US',2]),2);
+console.log('PASS: role and individual all-branch access; all-branch Manager delegation; branch Manager cannot grant global access; runtime role revocation and revision conflicts.');
 await db.exec('set role authenticated');await denied(()=>call('ao_schedule_save',['admin',null,0,data]),/permission denied/);await denied(()=>db.query('select * from ao_schedule_members'),/permission denied/);
 console.log('PASS: PostgreSQL migration; branch permissions; signed-in and active membership; Editor and Manager saves; denied Viewer and cross-branch writes; revision conflicts; validation; member grants and revocation; audit trail; discontinued class recovery; no direct authenticated database access.');await db.close();

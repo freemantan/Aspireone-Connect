@@ -32,6 +32,10 @@ export async function schedulingAPI(request:Request,user:Row){
   for(const field of ['academic_year','term','day','start_minute','end_minute'])check(Number.isInteger(p.data[field]),'Enter valid class times and term.',400);
   return scheduleRPC('ao_schedule_save',{p_actor:user.id,p_id:p.id||null,p_revision:p.revision,p_data:p.data});
  }
+ if(p.op==='global-member'){
+  check(['user','role'].includes(p.type)&&typeof p.principal==='string'&&p.principal.length>0&&p.principal.length<=100&&['None','View','Edit','Manage'].includes(p.role),'Invalid all-branch membership.',400);
+  return scheduleRPC('ao_schedule_global_member_save',{p_actor:user.id,p_type:p.type,p_principal:p.principal,p_role:p.role,p_revision:p.revision});
+ }
  check(p.op==='member'&&typeof p.user==='string'&&p.user.length<=100&&typeof p.branch==='string'&&p.branch.length<=30,'Invalid membership.',400);
  check(p.role===null||['View','Edit','Manage'].includes(p.role),'Invalid access level.',400);
  return scheduleRPC('ao_schedule_member_save',{p_actor:user.id,p_user:p.user,p_branch:p.branch,p_role:p.role,p_revision:p.revision});

@@ -1,0 +1,9 @@
+import fs from 'node:fs';
+const publicPath=new URL('../public/schedules/index.html',import.meta.url);
+const prior=fs.readFileSync(publicPath,'utf8');
+const payload=prior.split('let data=')[1].split('\nconst $')[0];
+const [data,branches]=payload.replace(/;$/,'').split(';let branches=');
+JSON.parse(data);JSON.parse(branches);
+let html=fs.readFileSync(new URL('./templates/schedule-review.html.template',import.meta.url),'utf8');
+html=html.replace('SCHEDULEEDITOR',()=>fs.readFileSync(new URL('./templates/schedule-editor.js',import.meta.url),'utf8')).replace('SUBJECTALIASES',()=>fs.readFileSync(new URL('../lib/schedule-subject-aliases.json',import.meta.url),'utf8')).replace('BRANCHDATA',()=>branches).replace('DATA',()=>data);
+fs.writeFileSync(publicPath,html);

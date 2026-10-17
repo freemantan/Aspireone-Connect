@@ -20,3 +20,11 @@ Saves validate subject, levels, dates, times and branch access on the server and
 - Run `tests/schedule-import.py` with the bundled Python runtime for extraction and import-preservation checks.
 
 Live authentication and deployment require a separate smoke check after installation: sign in as Administrator, assign a branch Editor and Manager, save a class, search for it, then verify that a Viewer and an Editor assigned to another branch cannot save it.
+
+## Create Class and all-branch access
+
+Apply `deployment/supabase-scheduling-v2.sql` after the original editing migration when upgrading an existing database. New installations use the combined installation script. The upgrade grants no new member or role access automatically.
+
+Tabs are Find A Class, Edit A Class, Create Class and Member Access (at the right). Create Class retains the form after saving and shows the saved class in the branch Monday–Sunday timetable. Save changes updates that class; Add another class creates a separate record using the currently entered details.
+
+Member Access supports individual branch assignments and all-branch grants to an active member or business role. All-branch Managers can assign access across branches, including all-branch grants. Branch Managers can only assign access within branches they manage. Access is the greatest applicable branch, all-branch member or all-branch business-role grant; a branch Viewer assignment does not cancel inherited editing rights. No all-branch grant removes that specific grant while retaining any other applicable grants.
