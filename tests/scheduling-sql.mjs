@@ -3,6 +3,7 @@ import {createRequire} from 'node:module';import fs from 'node:fs';import assert
 const require=createRequire(import.meta.url);const {PGlite}=require(process.env.SCHEDULE_PGLITE||'@electric-sql/pglite');const db=new PGlite();
 const root=new URL('../',import.meta.url);await db.exec("create role anon;create role authenticated;create role service_role;create table ao_workspace(id integer primary key,state jsonb);");await db.exec(fs.readFileSync(new URL('deployment/supabase-schedules.sql',root),'utf8'));await db.exec(fs.readFileSync(new URL('deployment/supabase-schedule-editing.sql',root),'utf8'));
 await db.exec(fs.readFileSync(new URL('deployment/supabase-scheduling-v2.sql',root),'utf8'));
+await db.exec(fs.readFileSync(new URL('deployment/supabase-scheduling-v3.sql',root),'utf8'));
 const users=[{id:'admin',active:true,admin:true},{id:'editor',active:true},{id:'manager',active:true},{id:'viewer',active:true,roles:['Customer Relationship']},{id:'inactive',active:false},{id:'invited',active:true,onboarding:true}];await db.query('insert into ao_workspace values(1,$1)',[JSON.stringify({users})]);await db.exec("insert into ao_schedule_zones values('central','Central');insert into ao_schedule_branches(id,name,zone_id,contact_evidence) values('AV','Alexandra Village','central','[]'),('US','Novena Thomson','central','[]');");
 const call=async(name,args)=>(await db.query(`select public.${name}(${args.map((_,i)=>'$'+(i+1)).join(',')}) result`,args)).rows[0].result;
 const denied=async(fn,pattern)=>assert.rejects(fn,pattern);
@@ -29,5 +30,12 @@ await call('ao_schedule_global_member_save',['admin','role','Customer Relationsh
 await call('ao_schedule_global_member_save',['admin','user','editor','Manage',0]);assert.equal(await call('ao_schedule_access',['editor','US',3]),3);
 await call('ao_schedule_global_member_save',['editor','user','manager','Edit',0]);assert.equal(await call('ao_schedule_access',['manager','US',2]),2);
 console.log('PASS: role and individual all-branch access; all-branch Manager delegation; branch Manager cannot grant global access; runtime role revocation and revision conflicts.');
+await denied(()=>call('ao_schedule_set_deleted',['viewer',first.id,3,true]),/FORBIDDEN/);
+let restored=await call('ao_schedule_set_deleted',['editor',first.id,3,false]);assert.equal(restored.status,'published');
+let removed=await call('ao_schedule_set_deleted',['editor',first.id,restored.revision,true]);assert.equal(removed.status,'discontinued');assert.equal(removed.start_minute,first.start_minute);
+await denied(()=>call('ao_schedule_set_deleted',['editor',first.id,restored.revision,false]),/CONFLICT/);
+restored=await call('ao_schedule_set_deleted',['editor',first.id,removed.revision,false]);assert.equal(restored.status,'published');assert.equal(restored.day,first.day);
+await db.query('update ao_schedule_sessions set start_minute=null,end_minute=null where id=$1',[first.id]);removed=await call('ao_schedule_set_deleted',['editor',first.id,restored.revision,true]);restored=await call('ao_schedule_set_deleted',['editor',first.id,removed.revision,false]);assert.equal(restored.start_minute,null);assert.equal(restored.end_minute,null);
+console.log('PASS: recoverable deletion, restoration, audit revision checks, branch denials and incomplete imported class times.');
 await db.exec('set role authenticated');await denied(()=>call('ao_schedule_save',['admin',null,0,data]),/permission denied/);await denied(()=>db.query('select * from ao_schedule_members'),/permission denied/);
 console.log('PASS: PostgreSQL migration; branch permissions; signed-in and active membership; Editor and Manager saves; denied Viewer and cross-branch writes; revision conflicts; validation; member grants and revocation; audit trail; discontinued class recovery; no direct authenticated database access.');await db.close();

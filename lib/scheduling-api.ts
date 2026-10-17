@@ -26,6 +26,10 @@ export async function schedulingAPI(request:Request,user:Row){
  let p:any;try{p=JSON.parse(raw);}catch{throw new AppError('Invalid schedule request.',400);}
  check(p&&typeof p==='object'&&!Array.isArray(p),'Invalid schedule request.',400);
  check(Number.isInteger(p.revision)&&p.revision>=0,'Reload the record before saving.',400);
+ if(p.op==='delete'||p.op==='restore'){
+  check(typeof p.id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(p.id),'Invalid class.',400);
+  return scheduleRPC('ao_schedule_set_deleted',{p_actor:user.id,p_id:p.id,p_revision:p.revision,p_deleted:p.op==='delete'});
+ }
  if(p.op==='save'){
   check(p.id==null||typeof p.id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(p.id),'Invalid class.',400);
   check(p.data&&typeof p.data==='object'&&!Array.isArray(p.data),'Invalid class.',400);

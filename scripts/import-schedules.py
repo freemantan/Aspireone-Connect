@@ -342,6 +342,7 @@ class Importer:
   branch_rows=''.join('<tr>'+''.join('<td>'+escape(str(v or 'Not supplied'))+'</td>' for v in r[1:5])+f'<td>{r[6]}</td></tr>' for r in branches)
   issue_rows=''.join('<tr>'+''.join('<td>'+escape(str(v or ''))+'</td>' for v in r)+'</tr>' for r in issues)
   report=(Path(__file__).parent/'templates/schedule-review.html.template').read_text()
+  report=report.replace('SCHEDULEWEEKEDITOR',(Path(__file__).parent/'templates/schedule-week-editor.js').read_text())
   report=report.replace('SCHEDULEEDITOR',(Path(__file__).parent/'templates/schedule-editor.js').read_text())
   report=report.replace('SUBJECTALIASES',(Path(__file__).resolve().parents[1]/'lib/schedule-subject-aliases.json').read_text())
   report=report.replace('SUMMARY',escape(f"{summary['sources']} source files · {summary['sessions']} draft entries · {summary['branches_with_sessions']} source branches · 0 published sessions"))
@@ -366,7 +367,7 @@ class Importer:
    cursor=self.db.execute('select * from ao_schedule_sessions where id=?',(rid,));names=[d[0] for d in cursor.description];row=dict(zip(names,cursor.fetchone()))
    seed.append('update public.ao_schedule_sessions set '+','.join(k+'='+sql(v) for k,v in row.items() if k not in ['id','revision'])+' where id='+sql(rid)+' and revision=1;')
   seed.extend([NOVENA_MIGRATION,'commit;']);(self.out/'supabase-schedules-seed.sql').write_text('\n'.join(seed))
-  (self.out/'supabase-schedules-install.sql').write_text(schema+'\n'+'\n'.join(seed)+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-schedule-editing.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v2.sql').read_text())
+  (self.out/'supabase-schedules-install.sql').write_text(schema+'\n'+'\n'.join(seed)+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-schedule-editing.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v2.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v3.sql').read_text())
   print(json.dumps(summary,indent=2))
 
 if __name__=='__main__':
