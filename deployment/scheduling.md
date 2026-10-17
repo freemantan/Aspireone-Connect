@@ -54,3 +54,9 @@ Edit Class keeps Level in its existing half-width position. Academic year and Te
 ## Action-first timetable controls
 
 After Search, Edit Class presents Edit, Move, Copy and Delete above the weekly schedule. No action is preselected. Edit opens the class-details form only after a class is clicked. Move/Copy require selecting a class before dragging it to another weekday; the time is preserved and a compact confirmation appears without the details form. Clicking a destination weekday or pressing Enter on its cell provides the keyboard alternative. Cancel discards a pending action. Delete opens only the Delete class / Keep class confirmation. A Refresh timetable control loads current records after a conflict; branch permission and revision checks remain enforced on the server. No database migration is required.
+
+## All levels and Find A Class Coach search
+
+Find A Class and Edit Class offer All levels in the Level dropdown. It removes only the level restriction; branch, subjects, coach and Edit Class period/access restrictions still apply. Subject options span the chosen branches when All levels is selected. Find A Class now offers the same optional Coach autocomplete/name-or-initials search as Edit Class, including case-insensitive matching and reset behavior.
+
+The shared form's text-input rule excludes checkbox inputs. Edit Class Subjects is a full-width section below Coach, with an aligned checkbox grid and a separate All subjects row. Level and the compact Academic year/Term pair retain their positions.
