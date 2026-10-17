@@ -60,3 +60,7 @@ After Search, Edit Class presents Edit, Move, Copy and Delete above the weekly s
 Find A Class and Edit Class offer All levels in the Level dropdown. It removes only the level restriction; branch, subjects, coach and Edit Class period/access restrictions still apply. Subject options span the chosen branches when All levels is selected. Find A Class now offers the same optional Coach autocomplete/name-or-initials search as Edit Class, including case-insensitive matching and reset behavior.
 
 The shared form's text-input rule excludes checkbox inputs. Edit Class Subjects is a full-width section below Coach, with an aligned checkbox grid and a separate All subjects row. Level and the compact Academic year/Term pair retain their positions.
+
+## Business role access popup
+
+Apply `deployment/supabase-scheduling-v4.sql` on existing databases. Selecting Assign to → Business role opens one modal listing every business role and its current all-branch access. Each row offers No additional access, Viewer, Editor or Manager. Save role access submits only changed roles in one database transaction; any stale revision or invalid row rolls back all changes. Cancel/Escape do not save. Reload access explicitly discards popup edits and reloads current grants. Only existing all-branch Managers/Administrators can open or save role access; individual branch grants remain separate. Opening the popup or installing the migration grants no access automatically.

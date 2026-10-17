@@ -26,6 +26,12 @@ export async function schedulingAPI(request:Request,user:Row){
  let p:any;try{p=JSON.parse(raw);}catch{throw new AppError('Invalid schedule request.',400);}
  check(p&&typeof p==='object'&&!Array.isArray(p),'Invalid schedule request.',400);
  check(Number.isInteger(p.revision)&&p.revision>=0,'Reload the record before saving.',400);
+ if(p.op==='role-access'){
+  check(Array.isArray(p.changes)&&p.changes.length>0&&p.changes.length<=14,'Choose valid role access changes.',400);
+  const principals=new Set();
+  for(const change of p.changes){check(change&&typeof change.principal==='string'&&change.principal.length>0&&change.principal.length<=100&&!principals.has(change.principal)&&['None','View','Edit','Manage'].includes(change.role)&&Number.isInteger(change.revision)&&change.revision>=0&&change.revision<=2147483647,'Invalid role access change.',400);principals.add(change.principal);}
+  return scheduleRPC('ao_schedule_role_access_save',{p_actor:user.id,p_changes:p.changes});
+ }
  if(p.op==='delete'||p.op==='restore'){
   check(typeof p.id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(p.id),'Invalid class.',400);
   return scheduleRPC('ao_schedule_set_deleted',{p_actor:user.id,p_id:p.id,p_revision:p.revision,p_deleted:p.op==='delete'});
