@@ -10,7 +10,7 @@
 .schedule-tabs{gap:4px;flex-wrap:wrap}.saved-class{outline:2px solid #1e6f73;background:#e3f4ec}.created-week{margin-top:28px}.created-week .week th:first-child{width:auto}.schedule-tabs button{font-size:13px;padding:12px 16px}
 </style></head><body><main>
 <header class="schedule-header"><div><h1>Scheduling</h1><p class="muted">Aspire Hub · Term 1 2027</p></div></header>
-<nav class="schedule-tabs" aria-label="Scheduling"><button id="find-tab" type="button" aria-current="page">Find A Class</button><button id="edit-tab" type="button">Edit A Class</button><button id="create-tab" type="button">Create Class</button><button id="members-tab" type="button" style="margin-left:auto">Member Access</button></nav>
+<nav class="schedule-tabs" aria-label="Scheduling"><button id="find-tab" type="button" aria-current="page">Find A Class</button><button id="edit-tab" type="button">Edit A Class</button><button id="create-tab" type="button">Add Class</button><button id="members-tab" type="button" style="margin-left:auto">Member Access</button></nav>
 <div id="find-screen"><section class="panel" aria-labelledby="filter-title"><h2 id="filter-title">Find A Class</h2><p class="help">Choose branches, one level and your subjects, then click Search.</p><form id="filters">
 <div class="find-grid"><fieldset class="branch-field"><legend>1. Zone and branches</legend><div id="branch-controls"></div></fieldset>
 <div class="course-fields"><label for="level">2. Level<select id="level" required><option value="">Select one level</option></select></label>
@@ -20,7 +20,7 @@
 <div id="count" role="status" aria-live="polite"></div><div id="results"><p class="empty">Select your branches, level and subjects, then click Search to view class schedules.</p></div>
 
 </div><section id="edit-screen" class="panel" hidden><h2>Edit A Class</h2><p id="edit-status" role="status" aria-live="polite">Sign in to AspireOne Connect to edit classes. Editors and Managers can update schedules for their assigned branches.</p><div id="editor-content"></div></section>
-<section id="create-screen" class="panel" hidden><h2>Create Class</h2><p id="create-status" role="status" aria-live="polite">Sign in to AspireOne Connect to create classes.</p><div id="create-content"></div></section><section id="members-screen" class="panel" hidden><h2>Member Access</h2><p id="members-status" role="status" aria-live="polite">Sign in to manage schedule access.</p><div id="members-content"></div></section>
+<section id="create-screen" class="panel" hidden><h2>Add Class</h2><p id="create-status" role="status" aria-live="polite">Sign in to AspireOne Connect to add classes.</p><div id="create-content"></div></section><section id="members-screen" class="panel" hidden><h2>Member Access</h2><p id="members-status" role="status" aria-live="polite">Sign in to manage schedule access.</p><div id="members-content"></div></section>
 <footer>All times are Singapore time.</footer>
 </main><script>
 let data=DATA;let branches=BRANCHDATA;

@@ -28,3 +28,9 @@ Apply `deployment/supabase-scheduling-v2.sql` after the original editing migrati
 Tabs are Find A Class, Edit A Class, Create Class and Member Access (at the right). Create Class retains the form after saving and shows the saved class in the branch Monday–Sunday timetable. Save changes updates that class; Add another class creates a separate record using the currently entered details.
 
 Member Access supports individual branch assignments and all-branch grants to an active member or business role. All-branch Managers can assign access across branches, including all-branch grants. Branch Managers can only assign access within branches they manage. Access is the greatest applicable branch, all-branch member or all-branch business-role grant; a branch Viewer assignment does not cancel inherited editing rights. No all-branch grant removes that specific grant while retaining any other applicable grants.
+
+## Add Class sessions and grant review
+
+The creation tab is named Add Class. Each successful Add class action creates a separate record and keeps entered fields for the next addition. Edit A Class remains available for changes to saved records. Its preview includes only classes added during the current uninterrupted visit to Add Class, grouped by branch and term, and excludes existing branch classes. Cancel clears the entry and keeps the visit's saved classes. Return opens Find A Class and ends the visit; choosing another scheduling tab, leaving Scheduling, or reloading also ends it. Saved database records remain available in Find and Edit.
+
+Member Access includes Check access granted, with member/business-role and branch filters. It lists recorded direct branch and all-branch grants, includes inherited business-role grants when filtering a member, omits revoked all-branch grants, and retains the existing server-managed visibility boundaries. No database migration or permission expansion is required for this interface update.
