@@ -165,7 +165,7 @@ class Importer:
   if coach and len(re.findall(r'Coach\s*',coach,re.I))>1:flags.append('coach_not_assigned_to_slot')
   rid=jid(branch,rel,sheet,loc,match.start() if match else 'enquire')
   notes={'source_level':level,'source_context':context,'flags':sorted(set(flags)),'time_zone':'Asia/Singapore','term_dates_require_confirmation':True}
-  self.insert('ao_schedule_sessions',id=rid,branch_id=branch,academic_year=2027,term=1,level_label=level,levels=js(levels),subject=sub,day=day,start_minute=start,end_minute=end,raw_time=raw,coach=coach or None,format=fmt,delivery_mode=mode,effective_from=None,effective_to=None,status='draft',review_state='needs_review' if flags else 'imported',notes=js(notes))
+  self.insert('ao_schedule_sessions',id=rid,branch_id=branch,academic_year=2027,term=1,level_label=level,levels=js(levels),subject=sub,day=day,start_minute=start,end_minute=end,raw_time=raw,coach=None,format=fmt,delivery_mode=mode,effective_from=None,effective_to=None,status='draft',review_state='needs_review' if flags else 'imported',notes=js(notes))
   self.insert('ao_schedule_evidence',id=jid(rid,sid,loc),session_id=rid,source_id=sid,sheet=sheet,locator=loc,raw_value=raw,raw_context=context)
   for flag in set(flags):self.issue(branch,flag,f'{sheet}!{loc}: {raw}',rid,sid)
   return rid
@@ -367,7 +367,7 @@ class Importer:
    cursor=self.db.execute('select * from ao_schedule_sessions where id=?',(rid,));names=[d[0] for d in cursor.description];row=dict(zip(names,cursor.fetchone()))
    seed.append('update public.ao_schedule_sessions set '+','.join(k+'='+sql(v) for k,v in row.items() if k not in ['id','revision'])+' where id='+sql(rid)+' and revision=1;')
   seed.extend([NOVENA_MIGRATION,'commit;']);(self.out/'supabase-schedules-seed.sql').write_text('\n'.join(seed))
-  (self.out/'supabase-schedules-install.sql').write_text(schema+'\n'+'\n'.join(seed)+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-schedule-editing.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v2.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v3.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v4.sql').read_text())
+  (self.out/'supabase-schedules-install.sql').write_text(schema+'\n'+'\n'.join(seed)+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-schedule-editing.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v2.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v3.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v4.sql').read_text()+'\n'+(Path(__file__).resolve().parents[1]/'deployment/supabase-scheduling-v5.sql').read_text())
   print(json.dumps(summary,indent=2))
 
 if __name__=='__main__':
