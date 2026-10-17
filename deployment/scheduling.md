@@ -50,3 +50,7 @@ The weekly display now uses the same Level / Subject rows and Monday–Sunday co
 ## Compact period filters and subject selection
 
 Edit Class keeps Level in its existing half-width position. Academic year and Term share the other half in a compact two-column group. Find A Class and Edit Class begin with no subjects selected; All subjects selects/deselects the full list and becomes unchecked when any one subject is unchecked. Search is enabled after at least one subject is selected.
+
+## Action-first timetable controls
+
+After Search, Edit Class presents Edit, Move, Copy and Delete above the weekly schedule. No action is preselected. Edit opens the class-details form only after a class is clicked. Move/Copy require selecting a class before dragging it to another weekday; the time is preserved and a compact confirmation appears without the details form. Clicking a destination weekday or pressing Enter on its cell provides the keyboard alternative. Cancel discards a pending action. Delete opens only the Delete class / Keep class confirmation. A Refresh timetable control loads current records after a conflict; branch permission and revision checks remain enforced on the server. No database migration is required.
