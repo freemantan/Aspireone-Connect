@@ -68670,7 +68670,7 @@ create or replace function public.ao_schedule_public_catalogue()
 returns jsonb language sql security definer set search_path='' as $$
 with visible as (
  select s.* from public.ao_schedule_sessions s
- where s.status='published' and s.academic_year>=2027 and s.level_label not like '%2026%'
+ where s.status<>'discontinued' and (s.status='published' or exists(select 1 from public.ao_schedule_evidence pe join public.ao_schedule_sources pf on pf.id=pe.source_id where pe.session_id=s.id and pf.relative_path like '%.pdf')) and s.academic_year>=2027 and s.level_label not like '%2026%'
  and (s.notes::jsonb->>'origin'='connect-editor'
  or (s.branch_id='HM' and s.notes::jsonb->>'approved_source'='hillion-2027-master')
  or exists(select 1 from public.ao_schedule_evidence e join public.ao_schedule_sources f on f.id=e.source_id where e.session_id=s.id and f.relative_path like '%.pdf'))
