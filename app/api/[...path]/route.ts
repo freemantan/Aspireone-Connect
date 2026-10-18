@@ -1,4 +1,4 @@
-import {schedulingAPI} from '@/lib/scheduling-api';
+import {schedulingAPI,publicSchedulingAPI} from '@/lib/scheduling-api';
 import {noticeBoardId,defaultNoticeGroup,isActivePerson} from '@/lib/notice-board';
 import {planningAPI} from '@/lib/planning-api';
 import {withArticleNavigation} from '@/lib/article-navigation';
@@ -19,6 +19,7 @@ async function handler(r:Request){try{const path=new URL(r.url).pathname.replace
  if(path==='config')return json({demo:false,google:!!e.SUPABASE_PUBLISHABLE_KEY});
  if(path==='demo'&&r.method==='POST'){check(isDemo(r),'Demo login is disabled',404);await bootstrap();await transact(demo);const p:any=await r.json();const {state}=await load();const u=state.users.find(u=>u.id===p.user);check(u&&u.id.startsWith('demo-'),'Unknown demo account',400);return new Response('{}',{headers:{'Content-Type':'application/json','Set-Cookie':await session(r,u)}});}
  if(path==='scheduler'&&r.method==='POST'){check(e.CRON_SECRET&&r.headers.get('Authorization')==='Bearer '+e.CRON_SECRET);return json({generated:await transact(s=>runRecurrences(s))});}
+ if(path==='class-schedules')return json(await publicSchedulingAPI(r));
  const user=await identity(r);
  if(path==='scheduling')return json(await schedulingAPI(r,user));
  if(path==='planning')return json(await planningAPI(r,user));

@@ -50,3 +50,8 @@ export async function schedulingAPI(request:Request,user:Row){
  check(p.role===null||['View','Edit','Manage'].includes(p.role),'Invalid access level.',400);
  return scheduleRPC('ao_schedule_member_save',{p_actor:user.id,p_user:p.user,p_branch:p.branch,p_role:p.role,p_revision:p.revision});
 }
+
+export async function publicSchedulingAPI(request:Request){
+ check(request.method==='GET','Method not allowed',405);
+ return scheduleRPC('ao_schedule_public_catalogue',{});
+}
