@@ -68658,3 +68658,9 @@ end; $$;
 
 commit;
 select count(*) as hillion_entries,count(*) filter(where start_minute is not null) as timed_entries,count(*) filter(where coach is not null and coach<>'') as assigned_coaches from public.ao_schedule_sessions where branch_id='HM' and status<>'discontinued' and notes::jsonb->>'approved_source'='hillion-2027-master';
+
+begin;
+update public.ao_schedule_branches set contact_url='https://wa.me/message/ESTHHUJPCZLJB1',revision=revision+1 where id='HM' and contact_url is distinct from 'https://wa.me/message/ESTHHUJPCZLJB1';
+commit;
+select id,contact_url,qr_url from public.ao_schedule_branches where id='HM';
+select id,levels,day,start_minute,end_minute from public.ao_schedule_sessions where id='4432cbff817320fa470bc010f917aa88';
