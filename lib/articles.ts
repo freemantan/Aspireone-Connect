@@ -1,5 +1,5 @@
 import {learningBoardId} from './learning';
-import {noticeBoardId,noticeCategories,noticeGroups,noticeGroupAccess,noticeArticleLevel,articleNoticeGroups,articleCategory,defaultNoticeCategory,defaultNoticeGroup,canPublishByRole,isActivePerson,explicitArticleReader,configuredNoticeAccess} from './notice-board';
+import {noticeBoardId,noticeCategories,noticeGroups,noticeGroupAccess,noticeArticleLevel,articleNoticeGroups,articleCategory,defaultNoticeCategory,defaultNoticeGroup,canPublishByRole,isActivePerson,explicitArticleReader} from './notice-board';
 import {compareArticles} from './article-order';
 import {State,Row,check,find,uid,now,audit} from './model';
 import {businessRoles,roleAccess,accessLevel} from './business-roles';
@@ -11,7 +11,6 @@ export function articleLevel(s:State,u:Row,a:Row){return a.board===noticeBoardId
 export function canReadArticle(s:State,u:Row,a:Row){
  if(!isActivePerson(u)||a.deleted)return false;
  if(u.admin||a.board===learningBoardId||explicitArticleReader(u,a))return true;
- if(a.board===noticeBoardId&&a.legacyNoticeAccess&&configuredNoticeAccess(a.legacyNoticeAccess,u)===0)return false;
  const level=articleLevel(s,u,a);
  return level>0&&(level>=2.5||a.audience==='all'||(u.roles||[]).includes('Director')||(a.audience||[]).some((r:string)=>(u.roles||[]).includes(r)));
 }
@@ -63,7 +62,7 @@ export function articleOperation(s:State,u:Row,p:any){
  const article=a||{id:uid(),board:board.id,author:u.id,createdAt:now(),version:0,pinned:false,order:Math.min(0,...s.articles.filter(x=>x.board===board.id&&!x.deleted).map(x=>typeof x.order==='number'?x.order:0))-1};
  if(p.pinned!==undefined&&!!p.pinned!==!!article.pinned)check(level>=3,'Only Managers can change Always on Top');
  Object.assign(article,{title,description,category:category.trim(),publishDate:p.publishDate,tags:[...new Set(p.tags.map((t:string)=>t.trim()))],individualAccess:[...new Set(individuals)],audience:p.audience==='all'?'all':[...new Set(p.audience)],attachments:attachmentIds,attachmentInfo:attachmentIds.map((id:string)=>{const file=find(s,'files',id);return {id:file.id,name:file.name,type:file.type};}),content:f.id,contentType:f.type||'text/html',updatedAt:now(),version:article.version+1});
- if(board.id===noticeBoardId){Object.assign(article,{noticeGroups:[...new Set(groups)],branch:needsBranch?p.branch:''});if(p.retainLegacyAccess===false)delete article.legacyNoticeAccess;}
+ if(board.id===noticeBoardId){Object.assign(article,{noticeGroups:[...new Set(groups)],branch:needsBranch?p.branch:''});delete article.legacyNoticeAccess;}
  if(level>=3&&p.pinned!==undefined)article.pinned=!!p.pinned;
  if(learning){board.learningCategories=[...new Set([...(board.learningCategories||[]),article.category])].sort();board.version++;}
  if(!a)s.articles.push(article);audit(s,u,board.id,article.id,a?'Article updated':'Article published',null,null);return article;

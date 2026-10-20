@@ -15,5 +15,7 @@ export function ensureKnowledge(s:State){
  let changed=false;
  if(!s.articles){s.articles=[];changed=true;}
  for(const b of knowledgeBoards)if(!s.boards.some(x=>x.id===b.id)){s.boards.push({...b,kind:'articles',statuses:[],columns:[],hidden:[],archived:false,version:1,roleAccess:{}});changed=true;}
+ // Retired category snapshots must never override current group/article grants.
+ for(const article of s.articles)if(Object.hasOwn(article,'legacyNoticeAccess')){delete article.legacyNoticeAccess;article.version=(article.version||0)+1;changed=true;}
  const noticesChanged=initialiseNoticeBoard(s);const learningChanged=initialiseLearning(s);return noticesChanged||learningChanged||changed;
 }

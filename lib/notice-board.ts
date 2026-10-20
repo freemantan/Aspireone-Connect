@@ -42,6 +42,6 @@ export function initialiseNoticeBoard(s:State){
   'All Staffs':combined,
   'Branch':structuredClone(board.categoryAccess?.Branch||{members:{},roles:{}})
  };
- for(const a of s.articles||[])if(a.board===noticeBoardId&&!a.noticeGroups){a.noticeGroups=[a.category==='Branch'?'Branch':defaultNoticeGroup];a.legacyNoticeAccess=structuredClone(board.categoryAccess?.[articleCategory(a)]||{members:{},roles:{}});}
+ for(const a of s.articles||[])if(a.board===noticeBoardId&&!a.noticeGroups){a.noticeGroups=[a.category==='Branch'?'Branch':defaultNoticeGroup];}
  board.noticeVersion=3;board.version++;return true;
 }

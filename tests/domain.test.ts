@@ -313,11 +313,11 @@ test('Notice Group grants protect article metadata and discussions independently
  grant('Business Managers',viewer.id,null);assert.equal(view(s,viewer).articles.length,0);
  viewer.roles=['Director'];assert.equal(view(s,viewer).articles.length,0);
 });
-test('Notice Group migration preserves category restrictions and article content',async()=>{
+test('Notice Group migration uses current group grants and preserves article content',async()=>{
  const {initialiseNoticeBoard,noticeCategories,noticeGroupAccess}=await import('../lib/notice-board');const {canReadArticle}=await import('../lib/articles');const {s,viewer,editor}=setup();
  s.boards.push({id:'knowledge-strategies',name:'Notice Board',kind:'articles',noticeVersion:1,version:1,categoryAccess:{'Strategies & Plans':{members:{[viewer.id]:'View'},roles:{}},'Finance & Budget':{members:{[editor.id]:'View'},roles:{}}}});s.articles=[{id:'legacy',board:'knowledge-strategies',title:'Existing',category:'Finance & Budget',audience:'all',content:'original',author:'other'}];
  assert.equal(initialiseNoticeBoard(s),true);const b=s.boards.find(b=>b.id==='knowledge-strategies')!;assert.deepEqual(s.articles[0].noticeGroups,['All Staffs']);assert.equal(s.articles[0].category,'Finance & Budget');assert.equal(s.articles[0].content,'original');assert.equal(noticeCategories.length,8);
- assert.equal(noticeGroupAccess(b,viewer,'All Staffs'),1);assert.equal(canReadArticle(s,viewer,s.articles[0]),false);assert.equal(canReadArticle(s,editor,s.articles[0]),true);
+ assert.equal(noticeGroupAccess(b,viewer,'All Staffs'),1);assert.equal(canReadArticle(s,viewer,s.articles[0]),true);assert.equal(canReadArticle(s,editor,s.articles[0]),true);assert.equal(s.articles[0].legacyNoticeAccess,undefined);
  b.noticeGroupAccess['All Staffs'].members={};assert.equal(initialiseNoticeBoard(s),false);assert.equal(noticeGroupAccess(b,viewer,'All Staffs'),0);
 });
 test('branch administration validates managers, unique names and article branch selections',()=>{
@@ -411,4 +411,18 @@ test('pending invitees can receive article, group, plan and branch assignments w
  s.files.push({id:'pending-reader-file',board:board.id,user:admin.id,articleContent:true});const a=mutate(s,admin,{op:'article.save',board:board.id,title:'Assigned before acceptance',description:'',publishDate:'2026-10-08',tags:[],category:'Operations',noticeGroups:['Coaches'],audience:[],individualAccess:[person.id],content:'pending-reader-file'});
  const plan={payload:{memberAccess:validateMemberAccess([person.id],s.users)}};assert.equal(canViewPlan(plan,person),false);assert.equal(canReadArticle(s,person,a),false);assert.equal(role(s,person,board.id),0);
  mutate(s,person,{op:'invite.accept',token:invite.token});assert.equal(canReadArticle(s,person,a),true);assert.equal(canViewPlan(plan,person),true);assert.equal(role(s,person,board.id),1);assert.equal(s.branches[0].manager,person.id);
+});
+
+test('retired category restrictions are cleared once and current grants govern reads and revocations',async()=>{
+ const {ensureKnowledge}=await import('../lib/business-roles');const {canReadArticle}=await import('../lib/articles');
+ const {s,viewer}=setup();ensureKnowledge(s);viewer.roles=['Business Manager'];
+ const b=s.boards.find(x=>x.id==='knowledge-strategies')!;
+ b.noticeGroupAccess['Business Managers']={members:{},roles:{'Business Manager':'View'}};
+ const a:any={id:'current-grants',board:b.id,author:'someone-else',noticeGroups:['Business Managers'],audience:'all',version:4,content:'unchanged',legacyNoticeAccess:{members:{},roles:{Finance:'View'}}};s.articles.push(a);
+ assert.equal(canReadArticle(s,viewer,a),true);
+ assert.equal(ensureKnowledge(s),true);assert.equal(a.legacyNoticeAccess,undefined);assert.equal(a.version,5);assert.equal(a.content,'unchanged');assert.equal(ensureKnowledge(s),false);
+ a.audience=['Finance'];assert.equal(canReadArticle(s,viewer,a),false);
+ a.audience='all';b.noticeGroupAccess['Business Managers'].roles={};assert.equal(canReadArticle(s,viewer,a),false);
+ a.individualAccess=[viewer.id];assert.equal(canReadArticle(s,viewer,a),true);
+ viewer.active=false;assert.equal(canReadArticle(s,viewer,a),false);
 });
