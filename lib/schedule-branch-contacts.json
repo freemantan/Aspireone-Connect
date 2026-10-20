@@ -118,5 +118,13 @@
     "method": "generated from verified branch WhatsApp number",
     "source": "Existing branch source contact details; supplied HM and WM workbook images contain the same QR, so separate direct-number codes used",
     "asset": "/schedules/qr/WM.png"
+  },
+  "LIVE": {
+    "branch": "C. Live Tutorial",
+    "url": "https://wa.me/6588110008",
+    "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQAAAABTUiuoAAACHUlEQVR4nO1bQU4DMQyceFfiuP1Bn7L8gCchfpY8hQcgdY9IWxnZTlpAAuVCaxHPIc2mc7DsjT1x2sToRKFeJhBUCmchXpduUFARzuoGBRWCVDEDRQZde9za8mM4y9XrsrLgBKRnGSQ8nDHpKjuztQf0v6nbZQtZoM5JZ7bfbmFAB6iHNBa1HM7pmg7vYMDPoF++G5PKWXbU82li/7aOS12YNVBawYBlr8WLeXdnK0anFtV+B1WCkgR1wNkkoTNbB6bOOn5Le4xNPhb2ZSsNT4Vp9KrgtVpNzHnR/CczS4eSJ8NZ5CVaJ5lLjHS2SrXS4ULhiBacUPnluIPz9mB7y9ayFq+mN+DF1pGpc5tMnFYGuByQgE1HeXyaODmxlYanwtKcCHXtPGkm1NmnzpNWtRzOIkd1i0VbcF7ao0XQhoiWi83dMuGyz3rKSuvrvDOwzwnLG2xYswtbg0rVE6IotI1RjiIrtrmlQ1Me4SwXHrictyQJtnsSbUTZ1+upFi+OugUn0bqihkfOyev12CzId7eVgoqvd8fWg5eOYWsW1stJhLPg7u4Y0sutnXdrP93GgB5QF2uou+MijfhkV5LSfhe9kX3Z2gEahLpqybJdpv3d9/gVjd9olWNrv2s6LCkUvMPTMUs6rJ0nhRyMZ0jv8E8NoKCiH6y6vaIetaqCFy1vjahQ8D7erBT/WsCdQ0BBRTirGxRUhLO68U+d9QHqrUMAnGhCZwAAAABJRU5ErkJggg==",
+    "method": "generated from official online support WhatsApp number",
+    "source": "https://www.88tuition.com/contact-us",
+    "asset": "/schedules/qr/LIVE.png"
   }
 }

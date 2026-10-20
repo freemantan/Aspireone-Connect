@@ -39,7 +39,8 @@ export async function schedulingAPI(request:Request,user:Row){
  if(p.op==='save'){
   check(p.id==null||typeof p.id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(p.id),'Invalid class.',400);
   check(p.data&&typeof p.data==='object'&&!Array.isArray(p.data),'Invalid class.',400);
-  for(const field of ['academic_year','term','day','start_minute','end_minute'])check(Number.isInteger(p.data[field]),'Enter valid class times and term.',400);
+  for(const field of ['academic_year','day','start_minute','end_minute'])check(Number.isInteger(p.data[field]),'Enter valid class times and term.',400);
+  check(Number.isInteger(p.data.term)||(p.data.product_mode==='C'&&p.data.term===null),'Enter a valid term.',400);
   return scheduleRPC('ao_schedule_save',{p_actor:user.id,p_id:p.id||null,p_revision:p.revision,p_data:p.data});
  }
  if(p.op==='global-member'){
