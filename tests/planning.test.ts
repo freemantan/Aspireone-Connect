@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {annual,budgetTemplate,calculate,clone,earnings,entityAccess,manager,validateBudget,validateRules,teacherTerms} from '../lib/planning';
+import {annual,budgetTemplate,calculate,clone,earnings,entityAccess,manager,validateBudget,validateRules,teacherTerms,commissionCosts} from '../lib/planning';
 import {seedRules} from '../lib/planning-seed';
 import {initial} from '../lib/model';
 test('source prices and channel applicability are preserved',()=>{validateRules(seedRules);assert.equal(seedRules.prices.find(p=>p.id==='A-8-11')!.amount,7700);assert.deepEqual(seedRules.rates.initial['Cold Call'].A,[5,3,0,5]);assert.deepEqual(seedRules.rates.initial.Online.A,[null,null,null,null]);assert.equal(seedRules.rates.initial.Online.C,undefined);});
@@ -212,10 +212,10 @@ test('approved JC prices retain rounded units, block totals and existing prices'
  assert.deepEqual(jc.map(p=>p.amount!*p.units!),[7500,28520,81000,153120,6600,25080,71280,134640]);
 });
 
-test('class teacher earnings include hourly minimum and six-student eligibility',()=>{
+test('class teacher earnings use the higher of share and minimum for every class',()=>{
  const one=earnings(5900*12,40,[0,0,0,0],'gross',{students:1,lessons:12});assert.equal(one.teacher,108000);assert.equal(one.retained,-37200);
  assert.equal(earnings(5900,40,[0,0,0,0],'gross',{students:1,lessons:1}).teacher,9000);
- assert.equal(earnings(9700*5*12,40,[0,0,0,0],'gross',{students:5,lessons:12}).teacher,108000);
+ assert.equal(earnings(9700*5*12,40,[0,0,0,0],'gross',{students:5,lessons:12}).teacher,232800);
  assert.equal(earnings(5900*6*12,40,[0,0,0,0],'gross',{students:6,lessons:12}).teacher,169920);
  assert.equal(earnings(1000*6*12,40,[0,0,0,0],'gross',{students:6,lessons:12}).teacher,108000);
  assert.equal(earnings(5900*12,0,[0,0,0,0],'gross').teacher,0);
@@ -230,4 +230,17 @@ test('product-specific teacher terms preserve defaults, custom minima, zero and 
  assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:6,lessons:12,minimumPerLesson:0}).teacher,24000);
  assert.equal(earnings(60000,40,[0,0,0,0],'gross',{students:6,lessons:12,minimumPerLesson:null}).teacher,null);
  r.teacherMinimum.B=-1;assert.throws(()=>validateRules(r),/Minimum teacher pay/);
+});
+
+test('commission cost breakdown separates regular costs and per-student Cold Call promotions',()=>{
+ const scenario={students:2,lessons:8,minimumPerLesson:0,channel:'Cold Call',product:'A',includeCommissions:true};
+ const v=commissionCosts(100000,40,[99,3,0,5],'gross',scenario);
+ assert.equal(v.teacher,40000);assert.equal(v.franchise,7000);assert.equal(v.reward,2000);
+ assert.equal(v.regularVariableCost,49000);assert.equal(v.grossProfit,51000);
+ assert.deepEqual(v.commissions,[30000,3000,0,5000]);assert.equal(v.promotionCost,38000);assert.equal(v.retained,13000);
+ for(const [lessons,expected] of [[3,0],[4,20000],[7,20000],[8,30000],[12,30000]])assert.equal(commissionCosts(100000,40,[5,0,0,0],'net',{...scenario,lessons}).commissions[0],expected);
+ assert.equal(commissionCosts(100000,40,[5,0,0,0],'gross',{...scenario,includeCommissions:false}).promotionCost,0);
+ assert.equal(commissionCosts(100000,40,[5,0,0,0],'gross',{...scenario,product:'D'}).commissions[0],5000);
+ assert.equal(commissionCosts(null,40,[5,0,0,0],'gross',scenario).grossProfit,null);
+ assert.equal(commissionCosts(100000,40,[5,0,0,0],'gross',{...scenario,students:null}).promotionCost,null);
 });
