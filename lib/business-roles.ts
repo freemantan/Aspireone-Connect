@@ -1,14 +1,14 @@
 import {initialiseLearning} from './learning';
 import {initialiseNoticeBoard} from './notice-board';
 import type {State,Row} from './model';
-export const businessRoles=['System Administrator','Business Manager','Subject Head','Customer Relationship','Marketing','HR','Technology','Finance','Online Business','AHCI','Manager','Senior Manager','Franchisee','Director','Shareholder'];
+export const businessRoles=['Business Manager','Subject Head','Customer Relationship','Marketing','HR','Technology','Finance','Online Business','AHCI','Manager','Senior Manager','Franchisee','Director','Shareholder','System Administrator'];
 export const roleLabel=(role:string)=>role==='HR'?'Human Resource':role;
 export const roleLabels=(roles:string[])=>businessRoles.filter(role=>roles.includes(role)).map(roleLabel).join(', ');
 import {accessLevel} from './access';
 export {accessLevel} from './access';
 export function roleAccess(s:State,u:Row,board:string){
  const grants=s.boards.find(b=>b.id===board)?.roleAccess||{};
- return Math.max(board.startsWith('knowledge-')&&(u.roles||[]).includes('Director')?1:0,...(u.roles||[]).map((r:string)=>accessLevel(grants[r])));
+ return Math.max(board.startsWith('knowledge-')&&(u.roles||[]).includes('Director')?1:0,...(u.roles||[]).filter((r:string)=>board!=='board-0'||r!=='System Administrator').map((r:string)=>accessLevel(grants[r])));
 }
 export const knowledgeBoards=[{id:'knowledge-strategies',name:'Notice Board'},{id:'knowledge-learning',name:'Learning'}];
 export function ensureKnowledge(s:State){
