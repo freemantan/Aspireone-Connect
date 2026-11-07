@@ -452,11 +452,11 @@ test('Technology notice group migrates once with contributor, manager and viewer
 });
 
 test('branch staffing persists CRM and multiple CREs with validation and stale edit protection',()=>{
- const {s,admin,viewer,editor}=setup();admin.roles=['Business Manager'];viewer.roles=['CRE'];editor.roles=['CRE'];view(s,admin);
+ const {s,admin,viewer,editor}=setup();admin.roles=['Business Manager'];viewer.roles=['Customer Relationship'];editor.roles=['Customer Relationship'];view(s,admin);
  const create={op:'branch.save',name:'Staffed branch',abbreviation:'STAFF',manager:admin.id,crm:viewer.id,cres:[viewer.id,editor.id,viewer.id]};
  mutate(s,admin,create);const branch=s.branches[0];assert.equal(branch.crm,viewer.id);assert.deepEqual(branch.cres,[viewer.id,editor.id]);
  const edit={...create,id:branch.id,version:branch.version};
- assert.throws(()=>mutate(s,viewer,edit));assert.throws(()=>mutate(s,admin,{...edit,crm:'missing'}),/CRM/);assert.throws(()=>mutate(s,admin,{...edit,cres:['missing']}),/CRE/);assert.throws(()=>mutate(s,admin,{...edit,cres:'invalid'}),/CRE/);
+ assert.throws(()=>mutate(s,viewer,edit));assert.throws(()=>mutate(s,admin,{...edit,crm:'missing'}),/CRM/);assert.throws(()=>mutate(s,admin,{...edit,cres:['missing']}),/Customer Relationship/);assert.throws(()=>mutate(s,admin,{...edit,cres:'invalid'}),/Customer Relationship/);
  mutate(s,admin,{op:'branch.save',id:branch.id,version:branch.version,name:'Staffed branch',abbreviation:'STAFF',manager:admin.id});assert.equal(branch.crm,viewer.id);assert.deepEqual(branch.cres,[viewer.id,editor.id]);
  assert.throws(()=>mutate(s,admin,edit),/changed/);
  mutate(s,admin,{...edit,version:branch.version,crm:'',cres:[]});assert.equal(branch.crm,'');assert.deepEqual(branch.cres,[]);
@@ -465,4 +465,6 @@ test('branch staffing persists CRM and multiple CREs with validation and stale e
 import {syncAdministrationBranches} from '../lib/administration-branch-sync';
 test('scheduling branch import is repeatable and preserves assignments',()=>{const {s}=setup();s.branches=[];assert.equal(syncAdministrationBranches(s),true);assert.equal(s.branches.length,16);const b=s.branches.find(b=>b.name==='Bedok Mall')!;assert.equal(b.abbreviation,'BM');b.manager='existing';assert.equal(syncAdministrationBranches(s),false);assert.equal(b.manager,'existing');});
 
-test('branch staffing enforces Business Manager and CRE roles',()=>{const {s,admin,viewer}=setup();view(s,admin);const p={op:'branch.save',name:'Role test',abbreviation:'RT',manager:viewer.id};viewer.roles=[];assert.throws(()=>mutate(s,admin,p),/Business Manager/);viewer.roles=['Business Manager'];assert.throws(()=>mutate(s,admin,{...p,crm:viewer.id}),/CRE/);assert.throws(()=>mutate(s,admin,{...p,cres:[viewer.id]}),/CRE/);viewer.roles.push('CRE');mutate(s,admin,{...p,crm:viewer.id,cres:[viewer.id]});});
+test('branch staffing enforces Business Manager and CRE roles',()=>{const {s,admin,viewer}=setup();view(s,admin);const p={op:'branch.save',name:'Role test',abbreviation:'RT',manager:viewer.id};viewer.roles=[];assert.throws(()=>mutate(s,admin,p),/Business Manager/);viewer.roles=['Business Manager'];assert.throws(()=>mutate(s,admin,{...p,crm:viewer.id}),/Customer Relationship/);assert.throws(()=>mutate(s,admin,{...p,cres:[viewer.id]}),/Customer Relationship/);viewer.roles.push('Customer Relationship');mutate(s,admin,{...p,crm:viewer.id,cres:[viewer.id]});});
+
+test('temporary CRE role migrates to Customer Relationship without duplicate roles',()=>{const {s,viewer}=setup();viewer.roles=['CRE','Customer Relationship'];syncAdministrationBranches(s);assert.deepEqual(viewer.roles,['Customer Relationship']);assert.equal(syncAdministrationBranches(s),false);});

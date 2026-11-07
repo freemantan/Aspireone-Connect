@@ -56,8 +56,8 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   check(!p.manager||s.users.some(x=>x.id===p.manager&&x.active&&!x.deleted&&(x.roles||[]).includes('Business Manager')),'Select a branch manager with the Business Manager role',400);
   const old=p.id?find(s,'branches',p.id):null;if(old)check(p.version===old.version,'Branch changed. Refresh and retry.',409);
   const crm=p.crm===undefined?(old?.crm||''):p.crm,cres=p.cres===undefined?(old?.cres||[]):p.cres;
-  check(typeof crm==='string'&&(!crm||s.users.some(x=>x.id===crm&&x.active&&!x.deleted&&(x.roles||[]).includes('CRE'))),'Select a CRM with the CRE role',400);
-  check(Array.isArray(cres)&&cres.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('CRE'))),'Select members with the CRE role',400);
+  check(typeof crm==='string'&&(!crm||s.users.some(x=>x.id===crm&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select a CRM with the Customer Relationship role',400);
+  check(Array.isArray(cres)&&cres.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select members with the Customer Relationship role',400);
   const branch=old||{id:uid(),version:0};Object.assign(branch,{name,abbreviation,manager:p.manager,crm,cres:[...new Set(cres)],version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
  }
  if(p.board===learningBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Learning is automatically available to all active staff',400);
