@@ -2,7 +2,7 @@ import {accessLevel} from './access';
 import type {State,Row} from './model';
 export const noticeBoardId='knowledge-strategies';
 export const noticeCategories=['Biz Intelligence','Strategies & Plans','Marketing & Sales','Finance & Budget','HR & Staff Benefit','Branch','Operations','Feedback'];
-export const noticeGroups=['Senior Manager','Business Managers','Subject Heads','Customer Relationship','Coaches','All Staffs','Branch'];
+export const noticeGroups=['Senior Manager','Business Managers','Subject Heads','Customer Relationship','Coaches','All Staffs','Branch','Technology'];
 export const defaultNoticeGroup='All Staffs';
 export const publishingRoles=['Manager','Business Manager','Senior Manager','Director'];
 export const isActivePerson=(u:Row)=>!!u.active&&!u.onboarding&&!u.deleted;
@@ -22,7 +22,9 @@ export const noticeAccess=(s:State,u:Row)=>!isActivePerson(u)?0:Math.max(canPubl
 export function initialiseNoticeBoard(s:State){
  let changed=false;for(const article of s.articles||[])if(article.category==='Operation'){article.category='Operations';article.version++;changed=true;}if(!s.branches){s.branches=[];changed=true;}
  const board=s.boards.find(b=>b.id===noticeBoardId);if(!board)return changed;
- if(board.noticeVersion>=2){if(board.noticeVersion<3){board.noticeGroupAccess={...board.noticeGroupAccess,'Senior Manager':board.noticeGroupAccess?.['Senior Manager']||{members:{},roles:{'Senior Manager':'View'}}};board.noticeVersion=3;board.version++;return true;}return changed;}
+ if(board.noticeVersion>=2){
+ if(board.noticeVersion<4){board.noticeGroupAccess={...board.noticeGroupAccess,'Technology':{members:{'freeman@aspirehub.com':'Manage'},roles:{Technology:'Edit',Director:'View'}}};if(board.noticeVersion<3)board.noticeGroupAccess['Senior Manager']??={members:{},roles:{'Senior Manager':'View'}};board.noticeVersion=4;board.version++;return true;}
+return changed;}
  if(!board.noticeVersion){
  const members:Record<string,string>={},roles:Record<string,string>={Director:'View'};
  const merge=(to:Record<string,string>,key:string,value:string)=>{if(key&&level(value)>level(to[key]))to[key]=value;};
@@ -39,9 +41,10 @@ export function initialiseNoticeBoard(s:State){
   'Subject Heads':{members:{},roles:{'Subject Head':'View'}},
   'Customer Relationship':{members:{},roles:{'Customer Relationship':'View'}},
   'Coaches':{members:{},roles:{}},
+  'Technology':{members:{'freeman@aspirehub.com':'Manage'},roles:{Technology:'Edit',Director:'View'}},
   'All Staffs':combined,
   'Branch':structuredClone(board.categoryAccess?.Branch||{members:{},roles:{}})
  };
  for(const a of s.articles||[])if(a.board===noticeBoardId&&!a.noticeGroups){a.noticeGroups=[a.category==='Branch'?'Branch':defaultNoticeGroup];}
- board.noticeVersion=3;board.version++;return true;
+ board.noticeVersion=4;board.version++;return true;
 }

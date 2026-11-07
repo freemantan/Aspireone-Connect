@@ -16,6 +16,7 @@ export function canReadArticle(s:State,u:Row,a:Row){
 }
 export function canPublishArticle(s:State,u:Row,board:Row,groups:string[]=[]){
  if(!isActivePerson(u)||board.kind!=='articles'||board.archived)return false;
+ if(board.id===noticeBoardId&&Array.isArray(groups)&&groups.includes('Technology')&&noticeGroupAccess(board,u,'Technology')<2)return false;
  if(canPublishByRole(u))return true;
  return board.id===noticeBoardId?Array.isArray(groups)&&groups.length>0&&groups.every(g=>noticeGroupAccess(board,u,g)>=2):articleBoardLevel(s,u,board.id)>=2;
 }

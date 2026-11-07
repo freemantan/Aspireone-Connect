@@ -426,3 +426,27 @@ test('retired category restrictions are cleared once and current grants govern r
  a.individualAccess=[viewer.id];assert.equal(canReadArticle(s,viewer,a),true);
  viewer.active=false;assert.equal(canReadArticle(s,viewer,a),false);
 });
+
+test('Technology notice group migrates once with contributor, manager and viewer grants',async()=>{
+ const {initialiseNoticeBoard,noticeGroupAccess}=await import('../lib/notice-board');
+ const {canPublishArticle,canReadArticle}=await import('../lib/articles');
+ const {s}=setup();
+ s.boards=s.boards.filter(b=>b.id!=='knowledge-strategies');
+ const board:any={id:'knowledge-strategies',kind:'articles',version:1,noticeVersion:3,noticeGroupAccess:{'All Staffs':{members:{},roles:{HR:'View'}}}};s.boards.push(board);
+ assert.equal(initialiseNoticeBoard(s),true);
+ const person=(roles:string[],extra:any={})=>({id:'test-'+roles.join('-'),email:'reader@example.com',roles,active:true,onboarding:false,...extra});
+ const tech=person(['Technology']),director=person(['Director']),freeman=person([],{email:'freeman@aspirehub.com'}),other=person(['HR']);
+ assert.equal(noticeGroupAccess(board,tech,'Technology'),2);
+ assert.equal(noticeGroupAccess(board,director,'Technology'),1);
+ assert.equal(noticeGroupAccess(board,freeman,'Technology'),3);
+ assert.equal(noticeGroupAccess(board,other,'Technology'),0);
+ assert.equal(canPublishArticle(s,tech,board,['Technology']),true);
+ assert.equal(canPublishArticle(s,director,board,['Technology']),false);
+ assert.equal(canPublishArticle(s,director,board,['Technology','All Staffs']),false);
+ assert.equal(canPublishArticle(s,freeman,board,['Technology']),true);
+ const article={id:'technology-test',board:board.id,noticeGroups:['Technology'],audience:'all',author:'someone-else'};
+ assert.equal(canReadArticle(s,director,article),true);assert.equal(canReadArticle(s,other,article),false);
+ assert.equal(board.noticeGroupAccess['All Staffs'].roles.HR,'View');
+ board.noticeGroupAccess.Technology.roles.Technology='View';const version=board.version;
+ assert.equal(initialiseNoticeBoard(s),false);assert.equal(board.version,version);assert.equal(noticeGroupAccess(board,tech,'Technology'),1);
+});
