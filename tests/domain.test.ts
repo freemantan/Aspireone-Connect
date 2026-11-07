@@ -468,3 +468,14 @@ test('scheduling branch import is repeatable and preserves assignments',()=>{con
 test('branch staffing enforces Business Manager and CRE roles',()=>{const {s,admin,viewer}=setup();view(s,admin);const p={op:'branch.save',name:'Role test',abbreviation:'RT',manager:viewer.id};viewer.roles=[];assert.throws(()=>mutate(s,admin,p),/Business Manager/);viewer.roles=['Business Manager'];assert.throws(()=>mutate(s,admin,{...p,crm:viewer.id}),/Customer Relationship/);assert.throws(()=>mutate(s,admin,{...p,cres:[viewer.id]}),/Customer Relationship/);viewer.roles.push('Customer Relationship');mutate(s,admin,{...p,crm:viewer.id,cres:[viewer.id]});});
 
 test('temporary CRE role migrates to Customer Relationship without duplicate roles',()=>{const {s,viewer}=setup();viewer.roles=['CRE','Customer Relationship'];syncAdministrationBranches(s);assert.deepEqual(viewer.roles,['Customer Relationship']);assert.equal(syncAdministrationBranches(s),false);});
+
+test('System Administrator appointment requires an administrator and protects the last administrator',()=>{
+ const {s,admin,viewer}=setup();view(s,admin);
+ assert((admin.roles||[]).includes('System Administrator'));
+ assert.throws(()=>mutate(s,viewer,{op:'roles.assign',user:viewer.id,roles:['System Administrator']}));
+ assert.throws(()=>mutate(s,viewer,{op:'person.edit',kind:'users',id:viewer.id,name:'Viewer',roles:['System Administrator']}));
+ assert.throws(()=>mutate(s,admin,{op:'roles.assign',user:admin.id,roles:[]}),/Keep an active administrator/);
+ mutate(s,admin,{op:'roles.assign',user:viewer.id,roles:['System Administrator']});assert.equal(viewer.admin,true);
+ mutate(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:'Viewer',roles:[]});assert.equal(viewer.admin,false);
+ viewer.roles=['System Administrator'];view(s,admin);assert.equal(viewer.admin,false);assert(!viewer.roles.includes('System Administrator'));
+});
