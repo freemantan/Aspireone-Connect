@@ -19,7 +19,7 @@ async function scheduleRPC(name:string,args:Record<string,unknown>){
  return result;
 }
 export async function schedulingAPI(request:Request,user:Row){
- if(request.method==='GET')return scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});
+ if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});return {...catalogue,isSystemAdmin:!!user.admin};}
  check(request.method==='POST','Method not allowed',405);
  check(Number(request.headers.get('content-length')||0)<=40000,'Schedule request is too large.',413);
  const raw=await request.text();check(new TextEncoder().encode(raw).length<=40000,'Schedule request is too large.',413);
@@ -27,6 +27,7 @@ export async function schedulingAPI(request:Request,user:Row){
  check(p&&typeof p==='object'&&!Array.isArray(p),'Invalid schedule request.',400);
  check(Number.isInteger(p.revision)&&p.revision>=0,'Reload the record before saving.',400);
  if(p.op==='role-access'){
+  check(user.admin,'Only system administrators can assign all-branch access.',403);
   check(Array.isArray(p.changes)&&p.changes.length>0&&p.changes.length<=14,'Choose valid role access changes.',400);
   const principals=new Set();
   for(const change of p.changes){check(change&&typeof change.principal==='string'&&change.principal.length>0&&change.principal.length<=100&&!principals.has(change.principal)&&['None','View','Edit','Manage'].includes(change.role)&&Number.isInteger(change.revision)&&change.revision>=0&&change.revision<=2147483647,'Invalid role access change.',400);principals.add(change.principal);}
@@ -44,11 +45,13 @@ export async function schedulingAPI(request:Request,user:Row){
   return scheduleRPC('ao_schedule_save',{p_actor:user.id,p_id:p.id||null,p_revision:p.revision,p_data:p.data});
  }
  if(p.op==='global-member'){
+  check(user.admin,'Only system administrators can assign all-branch access.',403);
   check(['user','role'].includes(p.type)&&typeof p.principal==='string'&&p.principal.length>0&&p.principal.length<=100&&['None','View','Edit','Manage'].includes(p.role),'Invalid all-branch membership.',400);
   return scheduleRPC('ao_schedule_global_member_save',{p_actor:user.id,p_type:p.type,p_principal:p.principal,p_role:p.role,p_revision:p.revision});
  }
  check(p.op==='member'&&typeof p.user==='string'&&p.user.length<=100&&typeof p.branch==='string'&&p.branch.length<=30,'Invalid membership.',400);
  check(p.role===null||['View','Edit','Manage'].includes(p.role),'Invalid access level.',400);
+ if(!user.admin){const c=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});check(Number(c.permissions?.[p.branch])>=3,'You can grant access only for branches you manage.',403);check(p.role!=='Manage'&&!c.members?.some((m:any)=>m.branch_id===p.branch&&m.user_id===p.user&&m.role==='Manage'),'Only system administrators can assign or change branch managers.',403);}
  return scheduleRPC('ao_schedule_member_save',{p_actor:user.id,p_user:p.user,p_branch:p.branch,p_role:p.role,p_revision:p.revision});
 }
 
