@@ -1,3 +1,4 @@
+import {load} from './supabase-store';
 import {settings} from './supabase';
 import {AppError,check,type Row} from './model';
 
@@ -19,13 +20,23 @@ async function scheduleRPC(name:string,args:Record<string,unknown>){
  return result;
 }
 export async function schedulingAPI(request:Request,user:Row){
- if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});return {...catalogue,isSystemAdmin:!!user.admin};}
+ const {state}=await load();
+ const assigned=(branch:string,name='')=>state.branches.some(b=>(b.scheduleId===branch||b.id==='schedule-'+branch||name&&b.name.trim().toLowerCase()===name.trim().toLowerCase())&&(b.manager===user.id||b.crm===user.id||(b.cres||[]).includes(user.id)));
+ if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});const permissions=Object.fromEntries(catalogue.branches.map((b:any)=>[b[0],assigned(b[0],b[1])?2:1]));return {...catalogue,permissions,records:catalogue.records.filter((r:any)=>permissions[r.branch_id]>=2),members:[],globalMembers:[],canManage:false,canManageAll:false,isSystemAdmin:!!user.admin,assignmentBasedAccess:true};}
  check(request.method==='POST','Method not allowed',405);
  check(Number(request.headers.get('content-length')||0)<=40000,'Schedule request is too large.',413);
  const raw=await request.text();check(new TextEncoder().encode(raw).length<=40000,'Schedule request is too large.',413);
  let p:any;try{p=JSON.parse(raw);}catch{throw new AppError('Invalid schedule request.',400);}
  check(p&&typeof p==='object'&&!Array.isArray(p),'Invalid schedule request.',400);
  check(Number.isInteger(p.revision)&&p.revision>=0,'Reload the record before saving.',400);
+ check(!['member','global-member','role-access'].includes(p.op),'Scheduling access is assigned in Administration > Branches.',403);
+ if(['save','delete','restore'].includes(p.op)){
+  const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});
+  const can=(branch:string)=>assigned(branch,catalogue.branches.find((b:any)=>b[0]===branch)?.[1]||'');
+  if(p.id){const previous=catalogue.records.find((r:any)=>r.id===p.id);check(previous&&can(previous.branch_id),'You can manage only your assigned branches.',403);}
+  if(p.op==='save')check(can(p.data?.branch_id),'You can manage only your assigned branches.',403);
+ }
+
  if(p.op==='role-access'){
   check(user.admin,'Only system administrators can assign all-branch access.',403);
   check(Array.isArray(p.changes)&&p.changes.length>0&&p.changes.length<=14,'Choose valid role access changes.',400);
