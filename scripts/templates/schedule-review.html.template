@@ -16,7 +16,7 @@
 .whatsapp-contact{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:10px}.whatsapp-contact img{display:block;width:132px;height:132px;object-fit:contain;background:#fff;padding:5px;box-sizing:border-box}.contact{min-width:150px}@media print{.whatsapp-contact img{width:100px;height:100px}}
 .week-editor-search select,.week-editor-search input[type=search]{height:46px;min-height:46px;box-sizing:border-box;font:inherit;padding:12px;border:1px solid #bdcec3;border-radius:7px;width:100%}.week-action-instructions{margin:12px 0 18px;color:#536d60;font-size:13px;line-height:1.6}.week-action-instructions p{margin:4px 0}
 .branch-selection-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid #dce7e0;padding-bottom:12px;margin-bottom:14px}.branch-selection-top>.check-line{font-weight:650}.branch-selection-top>.check-line:last-child{margin-left:auto}
-</style></head><body><main>
+</style><link rel="stylesheet" href="/schedules/results.css"></head><body><main>
 <header class="schedule-header"><div><h1>Scheduling</h1><p class="muted">Aspire Hub · Term 1 2027</p></div></header>
 <nav class="schedule-tabs" aria-label="Scheduling"><button id="find-tab" type="button" aria-current="page">Find A Class</button><button id="edit-tab" type="button">Edit Class</button><button id="create-tab" type="button">Add Class</button><button id="members-tab" type="button" style="margin-left:auto">Member Access</button></nav>
 <div class="panel product-modes" aria-label="Learning modes"><strong>A. Small Group Coaching</strong> · Physical classroom, typically 2 hours<br><strong>B. Physical Tutorial</strong> · 90 minutes · Schedule coming soon<br><strong>C. Live Tutorial</strong> · Online, 90 minutes · When selected, matching classes appear after branch schedules<br><strong>D. E-Learning</strong> · Self-learning anytime; no timetable required</div><div id="find-screen"><section class="panel" aria-labelledby="filter-title"><h2 id="filter-title">Find A Class</h2><p class="help">Choose branches, Online Classes or both, then select a level and subjects and click Search.</p><form id="filters">
@@ -75,4 +75,4 @@ buildBranches();updateLevels();if(typeof window!=='undefined'&&window.self!==win
 
 SCHEDULEEDITOR
 SCHEDULEWEEKEDITOR
-</script></body></html>
+</script><script src="/schedules/results.js"></script></body></html>
