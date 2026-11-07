@@ -53,11 +53,11 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   check(u.admin);const name=typeof p.name==='string'?p.name.trim():'',abbreviation=typeof p.abbreviation==='string'?p.abbreviation.trim():'';
   check(name&&name.length<=100&&abbreviation&&abbreviation.length<=20,'Enter a branch name and abbreviation',400);
   check(!s.branches.some(b=>b.id!==p.id&&(b.name.toLowerCase()===name.toLowerCase()||b.abbreviation.toLowerCase()===abbreviation.toLowerCase())),'Branch name and abbreviation must be unique',400);
-  check(s.users.some(x=>x.id===p.manager&&x.active&&!x.deleted),'Select an active or invited branch manager',400);
+  check(!p.manager||s.users.some(x=>x.id===p.manager&&x.active&&!x.deleted&&(x.roles||[]).includes('Business Manager')),'Select a branch manager with the Business Manager role',400);
   const old=p.id?find(s,'branches',p.id):null;if(old)check(p.version===old.version,'Branch changed. Refresh and retry.',409);
   const crm=p.crm===undefined?(old?.crm||''):p.crm,cres=p.cres===undefined?(old?.cres||[]):p.cres;
-  check(typeof crm==='string'&&(!crm||s.users.some(x=>x.id===crm&&x.active&&!x.deleted)),'Select an active or invited CRM',400);
-  check(Array.isArray(cres)&&cres.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted)),'Select active or invited CRE members',400);
+  check(typeof crm==='string'&&(!crm||s.users.some(x=>x.id===crm&&x.active&&!x.deleted&&(x.roles||[]).includes('CRE'))),'Select a CRM with the CRE role',400);
+  check(Array.isArray(cres)&&cres.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('CRE'))),'Select members with the CRE role',400);
   const branch=old||{id:uid(),version:0};Object.assign(branch,{name,abbreviation,manager:p.manager,crm,cres:[...new Set(cres)],version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
  }
  if(p.board===learningBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Learning is automatically available to all active staff',400);

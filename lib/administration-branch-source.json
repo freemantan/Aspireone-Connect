@@ -1,0 +1,82 @@
+[
+  {
+    "scheduleId": "AV",
+    "name": "Alexandra Village",
+    "abbreviation": "AV"
+  },
+  {
+    "scheduleId": "BT",
+    "name": "Bukit Timah",
+    "abbreviation": "BT"
+  },
+  {
+    "scheduleId": "US",
+    "name": "Novena Thomson",
+    "abbreviation": "NT"
+  },
+  {
+    "scheduleId": "RM",
+    "name": "Rochester Mall",
+    "abbreviation": "RM"
+  },
+  {
+    "scheduleId": "BM",
+    "name": "Bedok Mall",
+    "abbreviation": "BM"
+  },
+  {
+    "scheduleId": "PW",
+    "name": "Parkway Parade",
+    "abbreviation": "PP"
+  },
+  {
+    "scheduleId": "PLQ",
+    "name": "Paya Lebar Quarter",
+    "abbreviation": "PLQ"
+  },
+  {
+    "scheduleId": "LM",
+    "name": "Lentor Modern",
+    "abbreviation": "LM"
+  },
+  {
+    "scheduleId": "KV",
+    "name": "Kovan",
+    "abbreviation": "K"
+  },
+  {
+    "scheduleId": "NEX",
+    "name": "Nex",
+    "abbreviation": "N"
+  },
+  {
+    "scheduleId": "SM",
+    "name": "Seletar Mall",
+    "abbreviation": "SM"
+  },
+  {
+    "scheduleId": "WL",
+    "name": "Woodleigh Mall",
+    "abbreviation": "WM"
+  },
+  {
+    "scheduleId": "HM",
+    "name": "Hillion Mall",
+    "abbreviation": "HM"
+  },
+  {
+    "scheduleId": "JP",
+    "name": "Jurong Point",
+    "abbreviation": "JP"
+  },
+  {
+    "scheduleId": "WM",
+    "name": "West Mall",
+    "abbreviation": "WM"
+  },
+  {
+    "scheduleId": "LIVE",
+    "name": "C. Live Tutorial",
+    "abbreviation": "CLT"
+  }
+]

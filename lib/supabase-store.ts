@@ -1,3 +1,4 @@
+import {syncAdministrationBranches} from './administration-branch-sync';
 import {ensureKnowledge} from './business-roles';
 import {initial,State,AppError} from './model';
 import {rpc,privateFiles,settings} from './supabase';
@@ -5,7 +6,7 @@ import {updateBoardNames,updateCommonColumns} from './workspace-updates';
 import {provisionInvitedPeople} from './invited-people';
 export const runtime=()=>({...settings(),BUCKET:privateFiles}) as any;
 export async function load():Promise<{state:State;revision:number}>{
- for(let n=0;n<5;n++){const data=await rpc('ao_load');const knowledgeUpdated=ensureKnowledge(data.state);const renamed=updateBoardNames(data.state),provisioned=provisionInvitedPeople(data.state);const columnsUpdated=updateCommonColumns(data.state);if(!knowledgeUpdated&&!renamed&&!provisioned&&!columnsUpdated)return data;
+ for(let n=0;n<5;n++){const data=await rpc('ao_load');const knowledgeUpdated=ensureKnowledge(data.state);const renamed=updateBoardNames(data.state),provisioned=provisionInvitedPeople(data.state);const columnsUpdated=updateCommonColumns(data.state),branchesUpdated=syncAdministrationBranches(data.state);if(!branchesUpdated&&!knowledgeUpdated&&!renamed&&!provisioned&&!columnsUpdated)return data;
  if(await rpc('ao_commit',{expected_revision:data.revision,new_state:data.state}))return {...data,revision:data.revision+1};}
  throw new AppError('Workspace is busy. Please retry.',409);
 }

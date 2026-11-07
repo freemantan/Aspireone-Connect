@@ -321,7 +321,7 @@ test('Notice Group migration uses current group grants and preserves article con
  b.noticeGroupAccess['All Staffs'].members={};assert.equal(initialiseNoticeBoard(s),false);assert.equal(noticeGroupAccess(b,viewer,'All Staffs'),0);
 });
 test('branch administration validates managers, unique names and article branch selections',()=>{
- const {s,admin,viewer}=setup();view(s,admin);const b=s.boards.find(b=>b.id==='knowledge-strategies')!;
+ const {s,admin,viewer}=setup();viewer.roles=['Business Manager'];view(s,admin);const b=s.boards.find(b=>b.id==='knowledge-strategies')!;
  assert.throws(()=>mutate(s,viewer,{op:'branch.save',name:'Test Centre',abbreviation:'TC',manager:viewer.id}));
  mutate(s,admin,{op:'branch.save',name:'Test Centre',abbreviation:'TC',manager:viewer.id});const branch=s.branches[0];assert.equal(branch.manager,viewer.id);
  assert.throws(()=>mutate(s,admin,{op:'branch.save',name:'Other',abbreviation:'tc',manager:viewer.id}),/unique/);
@@ -407,7 +407,7 @@ test('pending invitees can receive article, group, plan and branch assignments w
  const invite=mutate(s,admin,{op:'company.invite',email:'pending-access@example.test',name:'Pending access'});invite.delivery='sent';provisionInvitedPeople(s);const person=s.users.find(u=>u.email===invite.email)!;
  const board=s.boards.find(b=>b.id==='knowledge-strategies')!;assert.ok(view(s,admin).noticePeople.some((u:any)=>u.id===person.id&&u.onboarding));
  mutate(s,admin,{op:'notice.access',group:'Coaches',version:board.version,user:person.id,access:'View'});
- mutate(s,admin,{op:'branch.save',name:'Pending manager branch',abbreviation:'PMB',manager:person.id});assert.equal(s.branches[0].manager,person.id);
+ person.roles=[...(person.roles||[]),'Business Manager'];mutate(s,admin,{op:'branch.save',name:'Pending manager branch',abbreviation:'PMB',manager:person.id});assert.equal(s.branches[0].manager,person.id);
  s.files.push({id:'pending-reader-file',board:board.id,user:admin.id,articleContent:true});const a=mutate(s,admin,{op:'article.save',board:board.id,title:'Assigned before acceptance',description:'',publishDate:'2026-10-08',tags:[],category:'Operations',noticeGroups:['Coaches'],audience:[],individualAccess:[person.id],content:'pending-reader-file'});
  const plan={payload:{memberAccess:validateMemberAccess([person.id],s.users)}};assert.equal(canViewPlan(plan,person),false);assert.equal(canReadArticle(s,person,a),false);assert.equal(role(s,person,board.id),0);
  mutate(s,person,{op:'invite.accept',token:invite.token});assert.equal(canReadArticle(s,person,a),true);assert.equal(canViewPlan(plan,person),true);assert.equal(role(s,person,board.id),1);assert.equal(s.branches[0].manager,person.id);
@@ -452,7 +452,7 @@ test('Technology notice group migrates once with contributor, manager and viewer
 });
 
 test('branch staffing persists CRM and multiple CREs with validation and stale edit protection',()=>{
- const {s,admin,viewer,editor}=setup();view(s,admin);
+ const {s,admin,viewer,editor}=setup();admin.roles=['Business Manager'];viewer.roles=['CRE'];editor.roles=['CRE'];view(s,admin);
  const create={op:'branch.save',name:'Staffed branch',abbreviation:'STAFF',manager:admin.id,crm:viewer.id,cres:[viewer.id,editor.id,viewer.id]};
  mutate(s,admin,create);const branch=s.branches[0];assert.equal(branch.crm,viewer.id);assert.deepEqual(branch.cres,[viewer.id,editor.id]);
  const edit={...create,id:branch.id,version:branch.version};
@@ -461,3 +461,8 @@ test('branch staffing persists CRM and multiple CREs with validation and stale e
  assert.throws(()=>mutate(s,admin,edit),/changed/);
  mutate(s,admin,{...edit,version:branch.version,crm:'',cres:[]});assert.equal(branch.crm,'');assert.deepEqual(branch.cres,[]);
 });
+
+import {syncAdministrationBranches} from '../lib/administration-branch-sync';
+test('scheduling branch import is repeatable and preserves assignments',()=>{const {s}=setup();s.branches=[];assert.equal(syncAdministrationBranches(s),true);assert.equal(s.branches.length,16);const b=s.branches.find(b=>b.name==='Bedok Mall')!;assert.equal(b.abbreviation,'BM');b.manager='existing';assert.equal(syncAdministrationBranches(s),false);assert.equal(b.manager,'existing');});
+
+test('branch staffing enforces Business Manager and CRE roles',()=>{const {s,admin,viewer}=setup();view(s,admin);const p={op:'branch.save',name:'Role test',abbreviation:'RT',manager:viewer.id};viewer.roles=[];assert.throws(()=>mutate(s,admin,p),/Business Manager/);viewer.roles=['Business Manager'];assert.throws(()=>mutate(s,admin,{...p,crm:viewer.id}),/CRE/);assert.throws(()=>mutate(s,admin,{...p,cres:[viewer.id]}),/CRE/);viewer.roles.push('CRE');mutate(s,admin,{...p,crm:viewer.id,cres:[viewer.id]});});
