@@ -450,3 +450,14 @@ test('Technology notice group migrates once with contributor, manager and viewer
  board.noticeGroupAccess.Technology.roles.Technology='View';const version=board.version;
  assert.equal(initialiseNoticeBoard(s),false);assert.equal(board.version,version);assert.equal(noticeGroupAccess(board,tech,'Technology'),1);
 });
+
+test('branch staffing persists CRM and multiple CREs with validation and stale edit protection',()=>{
+ const {s,admin,viewer,editor}=setup();view(s,admin);
+ const create={op:'branch.save',name:'Staffed branch',abbreviation:'STAFF',manager:admin.id,crm:viewer.id,cres:[viewer.id,editor.id,viewer.id]};
+ mutate(s,admin,create);const branch=s.branches[0];assert.equal(branch.crm,viewer.id);assert.deepEqual(branch.cres,[viewer.id,editor.id]);
+ const edit={...create,id:branch.id,version:branch.version};
+ assert.throws(()=>mutate(s,viewer,edit));assert.throws(()=>mutate(s,admin,{...edit,crm:'missing'}),/CRM/);assert.throws(()=>mutate(s,admin,{...edit,cres:['missing']}),/CRE/);assert.throws(()=>mutate(s,admin,{...edit,cres:'invalid'}),/CRE/);
+ mutate(s,admin,{op:'branch.save',id:branch.id,version:branch.version,name:'Staffed branch',abbreviation:'STAFF',manager:admin.id});assert.equal(branch.crm,viewer.id);assert.deepEqual(branch.cres,[viewer.id,editor.id]);
+ assert.throws(()=>mutate(s,admin,edit),/changed/);
+ mutate(s,admin,{...edit,version:branch.version,crm:'',cres:[]});assert.equal(branch.crm,'');assert.deepEqual(branch.cres,[]);
+});
