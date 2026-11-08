@@ -116,3 +116,8 @@
 .administration-container{width:100%;max-width:1000px;min-width:0;margin-right:auto}.administration-container .panel{min-width:0}.administration-container .member-row{flex-wrap:wrap;gap:10px}.administration-container .member-row>span{min-width:0;overflow-wrap:anywhere}.administration-container .detail-body{max-width:100%}
 
 .administration-container .branch-list-row{display:flex;flex-wrap:nowrap;align-items:center}.branch-list-row>span{flex:1;min-width:0}.branch-list-actions{display:flex;flex:0 0 auto;gap:8px;align-items:center;margin-left:auto}@media(max-width:520px){.administration-container .branch-list-row{flex-wrap:wrap}.branch-list-actions{margin-left:auto}}
+
+/* Keep branch field headings prominent and staff controls comfortably sized. */
+.branch-administration .form-grid>label,.branch-administration .branch-cre-picker>legend{font-weight:700}
+.branch-administration .form-grid input,.branch-administration .form-grid select{display:block;width:100%;min-width:0;min-height:42px;padding:9px 10px;border:1px solid #dce3e9;border-radius:5px;background:#fff;color:inherit;font:400 14px/1.5 Arial,Helvetica,sans-serif}
+.branch-administration label.branch-cre-option{min-height:42px;font-weight:400}
