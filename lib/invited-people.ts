@@ -4,9 +4,8 @@ import {State,uid} from './model';
 // Pending identities remain unable to access boards until invitation acceptance.
 export function provisionInvitedPeople(s:State){
  let changed=false;
- for(const invite of s.invites){
-  const hasMembership=s.members.some(m=>m.pendingEmail===invite.email);
-  if(invite.state!=='pending'||(!hasMembership&&invite.delivery!==undefined&&invite.delivery!=='sent'))continue;
+ const pendingByEmail=new Map(s.invites.filter(i=>i.state==='pending').map(i=>[i.email,i]));
+ for(const invite of pendingByEmail.values()){
   let person=s.users.find(u=>u.email===invite.email);
   if(!person){
    const name=invite.name||invite.email;
@@ -14,6 +13,9 @@ export function provisionInvitedPeople(s:State){
    s.users.push(person);changed=true;
   }
   if(!person.active||person.deleted)continue;
+  if(person.onboarding){
+   for(const key of ['name','mobile','abbreviation','roles'])if(invite[key]!==undefined&&JSON.stringify(person[key])!==JSON.stringify(invite[key])){person[key]=Array.isArray(invite[key])?[...invite[key]]:invite[key];changed=true;}
+  }
   for(const membership of s.members.filter(m=>m.pendingEmail===invite.email))if(membership.user!==person.id){membership.user=person.id;changed=true;}
  }
  return changed;
