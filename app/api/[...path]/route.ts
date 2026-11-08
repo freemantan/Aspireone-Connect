@@ -39,7 +39,7 @@ async function handler(r:Request){try{const path=new URL(r.url).pathname.replace
  if(path.startsWith('articles/')&&r.method==='GET'){
   const {state}=await load(),a=find(state,'articles',path.split('/')[1]);check(canReadArticle(state,find(state,'users',user.id),a),'Article unavailable',404);
   const fileId=new URL(r.url).searchParams.get('file')||a.content;check((a.attachments||[a.content]).includes(fileId),'Attachment unavailable',404);const f=find(state,'files',fileId),obj=await e.BUCKET.get(f.key);
-  const replacement=a.id==='bbcb9f73-2930-4f05-a1a0-16c15c14b82c'&&fileId===a.content&&f.type==='text/html'?(await import('@/lib/commission-article-content.json')).default.html:null;
+  const replacement=a.id==='e4b42975-3a16-4633-9ff5-54d96eb3e19f'&&fileId===a.content&&f.type==='text/html'?(await import('@/lib/november-offer-content.json')).default.html:a.id==='bbcb9f73-2930-4f05-a1a0-16c15c14b82c'&&fileId===a.content&&f.type==='text/html'?(await import('@/lib/commission-article-content.json')).default.html:null;
   const body=f.type==='text/html'?(new URL(r.url).searchParams.has('download')?(replacement??obj.body):withArticleNavigation(replacement??await new Response(obj.body).text(),a.board)):obj.body;
   return new Response(body,{headers:{'Content-Type':f.type==='text/html'?'text/html; charset=utf-8':f.type,'Content-Disposition':(new URL(r.url).searchParams.has('download')||!['text/html','application/pdf','video/mp4','image/png','image/jpeg','image/gif','image/webp'].includes(f.type)?'attachment':'inline')+"; filename*=UTF-8''"+encodeURIComponent(f.name),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':articlePolicy(f.type),'Referrer-Policy':'no-referrer'}});
  }

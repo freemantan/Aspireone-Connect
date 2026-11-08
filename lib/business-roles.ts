@@ -17,6 +17,7 @@ export function ensureKnowledge(s:State){
  for(const user of s.users){if(user.onboarding)continue;const current=user.roles||[];const roles=user.admin?[...new Set([...current,'System Administrator'])]:current.filter((r:string)=>r!=='System Administrator');if(JSON.stringify(roles)!==JSON.stringify(current)){user.roles=roles;changed=true;}}
 
  if(!s.articles){s.articles=[];changed=true;}
+ for(const article of s.articles)if(article.id==='e4b42975-3a16-4633-9ff5-54d96eb3e19f'&&article.title?.includes('Enrolment Advantage')){article.title='November Enrolment Offer for 2027 (9–30 Nov 2026)';article.version=(article.version||0)+1;changed=true;}
  for(const b of knowledgeBoards)if(!s.boards.some(x=>x.id===b.id)){s.boards.push({...b,kind:'articles',statuses:[],columns:[],hidden:[],archived:false,version:1,roleAccess:{}});changed=true;}
  // Retired category snapshots must never override current group/article grants.
  for(const article of s.articles)if(Object.hasOwn(article,'legacyNoticeAccess')){delete article.legacyNoticeAccess;article.version=(article.version||0)+1;changed=true;}
