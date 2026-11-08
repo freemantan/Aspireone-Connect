@@ -49,6 +49,11 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   else{const person=s.users.find(x=>x.id===p.user);check(person&&!person.deleted&&person.active,'Choose an active company member',400);check(p.access===null||validAccess(p.access),'Invalid access',400);check(u.admin||!(person.roles||[]).includes('Director')||p.access!==null,'Managers cannot remove Director access');delete access.members[person.email];if(p.access===null)delete access.members[person.id];else access.members[person.id]=p.access;}
   b.version++;audit(s,u,b.id,b.id,'Notice Group access updated',null,{group:p.group});return;
  }
+ if(p.op==='branch.delete'){
+  check(u.admin);const branch=find(s,'branches',p.id);check(p.version===branch.version,'Branch changed. Refresh and retry.',409);
+  s.branchDeletions??=[];s.branchDeletions.push({...branch,deletedAt:now()});s.branches=s.branches.filter(b=>b.id!==branch.id);
+  audit(s,u,'',branch.id,'Branch deleted',branch,null);return;
+ }
  if(p.op==='branch.save'){
   check(u.admin);const name=typeof p.name==='string'?p.name.trim():'',abbreviation=typeof p.abbreviation==='string'?p.abbreviation.trim():'';
   check(name&&name.length<=100&&abbreviation&&abbreviation.length<=20,'Enter a branch name and abbreviation',400);

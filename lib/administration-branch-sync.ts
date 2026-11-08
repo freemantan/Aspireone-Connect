@@ -18,6 +18,7 @@ export function syncAdministrationBranches(s:State){
  for(const board of s.boards)migrate(board);
  for(const article of s.articles||[])migrate(article);
  for(const item of source){
+  if((s.branchDeletions||[]).some(b=>b.scheduleId===item.scheduleId||b.id==='schedule-'+item.scheduleId||b.name?.trim().toLowerCase()===item.name.toLowerCase()))continue;
   const existing=s.branches.find(b=>b.scheduleId===item.scheduleId||b.name.trim().toLowerCase()===item.name.toLowerCase()||b.id==='schedule-'+item.scheduleId);
   if(existing){if(!existing.scheduleId){existing.scheduleId=item.scheduleId;changed=true;}continue;}
   let abbreviation=item.abbreviation,n=2;
