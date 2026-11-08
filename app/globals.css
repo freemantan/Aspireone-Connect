@@ -121,3 +121,7 @@
 .branch-administration .form-grid>label,.branch-administration .branch-cre-picker>legend{font-weight:700}
 .branch-administration .form-grid input,.branch-administration .form-grid select{display:block;width:100%;min-width:0;min-height:42px;padding:9px 10px;border:1px solid #dce3e9;border-radius:5px;background:#fff;color:inherit;font:400 14px/1.5 Arial,Helvetica,sans-serif}
 .branch-administration label.branch-cre-option{min-height:42px;font-weight:400}
+
+.planning-scroll .commission-fees-table{width:100%;min-width:0;table-layout:fixed;font-size:13px}
+.planning-scroll .commission-fees-table th,.planning-scroll .commission-fees-table td{min-width:0;padding:9px 5px;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+.planning-scroll .commission-fees-table th:first-child{width:22%}
