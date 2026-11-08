@@ -28,11 +28,17 @@ export function articleOperation(s:State,u:Row,p:any){
  const category=p.category??a?.category??(board.id===noticeBoardId?defaultNoticeCategory:'');
  const groups=p.noticeGroups??(a?articleNoticeGroups(a):[defaultNoticeGroup]);
  const level=a?articleLevel(s,u,a):board.id===noticeBoardId?Math.max(0,...(Array.isArray(groups)?groups:[]).map((g:string)=>noticeGroupAccess(board,u,g))):articleBoardLevel(s,u,board.id);
+ if(p.op==='article.archive'){
+  check(a&&(u.admin||a.author===u.id||level>=2.5),'Only the author, an Editor or a Manager can archive or restore this article',403);
+  check(typeof p.archived==='boolean','Choose archive or restore',400);
+  const before=!!a.archived;a.archived=p.archived;a.updatedAt=now();a.version++;
+  audit(s,u,board.id,a.id,p.archived?'Article archived':'Article restored',before,p.archived);return a;
+ }
  if(p.op==='article.delete'){check(a&&(u.admin||a.author===u.id||level>=2.5),'Only the author, an Editor or a Manager can remove this article',403);check(p.confirm===true,'Confirm deletion',400);a.deleted=true;a.version++;audit(s,u,board.id,a.id,'Article deleted',null,null);return;}
  if(p.op==='article.move'){
   check(a&&level>=3,'Manager access required');check(['up','down'].includes(p.direction),'Invalid direction',400);
   if(board.id===noticeBoardId)check(noticeGroups.includes(p.group)&&articleNoticeGroups(a).includes(p.group)&&noticeGroupAccess(board,u,p.group)>=3,'Choose a managed Notice Group',400);
-  const rows=s.articles.filter(x=>x.board===board.id&&!x.deleted&&(board.id!==noticeBoardId||articleNoticeGroups(x).includes(p.group)&&(!p.branch||x.branch===p.branch))&&!!x.pinned===!!a.pinned).sort(compareArticles),index=rows.findIndex(x=>x.id===a.id),target=index+(p.direction==='up'?-1:1);
+  const rows=s.articles.filter(x=>x.board===board.id&&!x.deleted&&!!x.archived===!!a.archived&&(board.id!==noticeBoardId||articleNoticeGroups(x).includes(p.group)&&(!p.branch||x.branch===p.branch))&&!!x.pinned===!!a.pinned).sort(compareArticles),index=rows.findIndex(x=>x.id===a.id),target=index+(p.direction==='up'?-1:1);
   check(target>=0&&target<rows.length,'Article is already at the end of this section',400);
   [rows[index],rows[target]]=[rows[target],rows[index]];rows.forEach((x,i)=>{if(x.order!==i){x.order=i;x.version++;}});audit(s,u,board.id,a.id,'Article moved',null,p.direction);return;
  }

@@ -242,6 +242,14 @@ test('article audience protects content metadata and discussions; author and man
  assert.throws(()=>mutate(s,manager,{op:'article.save',board:board.id,id:a.id,version:a.version,title:'Changed'}));
  assert.throws(()=>mutate(s,viewer,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true}));
  assert.ok(!a.deleted);
+ const contentBefore=a.content,messagesBefore=s.messages.filter((m:any)=>m.subject===a.id).length,archiveVersion=a.version;
+ assert.throws(()=>mutate(s,viewer,{op:'article.archive',board:board.id,id:a.id,version:a.version,archived:true}));
+ mutate(s,editor,{op:'article.archive',board:board.id,id:a.id,version:a.version,archived:true});
+ assert.equal(a.archived,true);assert.ok(!a.deleted);assert.equal(a.content,contentBefore);
+ assert.equal(s.messages.filter((m:any)=>m.subject===a.id).length,messagesBefore);
+ assert.throws(()=>mutate(s,editor,{op:'article.archive',board:board.id,id:a.id,version:archiveVersion,archived:false}),/Article changed/);
+ mutate(s,manager,{op:'article.archive',board:board.id,id:a.id,version:a.version,archived:false});assert.equal(a.archived,false);
+
  assert.throws(()=>mutate(s,admin,{op:'article.delete',board:board.id,id:a.id,version:a.version}),/Confirm deletion/);
  mutate(s,admin,{op:'article.delete',board:board.id,id:a.id,version:a.version,confirm:true});assert.equal(view(s,editor).articles.length,0);
  assert.throws(()=>mutate(s,editor,{op:'chat.post',board:board.id,subject:a.id,body:'Deleted'}));
