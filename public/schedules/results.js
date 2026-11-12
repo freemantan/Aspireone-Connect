@@ -1,6 +1,6 @@
 /* Shared search-result presentation for embedded and public schedules. */
 (()=>{
-const productInfo={A:['Academic Coaching','Small-group academic coaching · 120 minutes per session'],B:['Physical Tutorial','Subject-led physical tutorial · 90 minutes per session'],C:['Live Online Tutorial','Live online tutorial · 90 minutes per session'],D:['E-Learning','Self-paced online learning · no fixed session duration']};
+const productInfo={A:['Academic Coaching','Small-group academic coaching · 120 minutes per session'],B:['120-minute Dedicated Class','Subject-led 120-minute Dedicated Class · 120 minutes per session'],C:['Live Online Tutorial','Live online tutorial · 90 minutes per session'],D:['E-Learning','Self-paced online learning · no fixed session duration']};
 let snapshot=null,busy=false;
 const previousDownloads=document.getElementById('downloads');if(previousDownloads)previousDownloads.remove();
 const toolbar=el('div',null,'schedule-downloads');toolbar.id='downloads';toolbar.hidden=true;

@@ -2,7 +2,7 @@
 import {Price,products} from '@/lib/planning';
 import {priceFigures,priceOrder} from '@/lib/price-calculations';
 import {Num,money} from './planning-controls';
-const descriptions:Record<string,string>={A:'Academic coaching · 2-hour lessons',B:'Physical tutorial · 1.5-hour lessons',C:'Online live tutorials · prices per class',D:'E-learning · annual package prices'};
+const descriptions:Record<string,string>={A:'Academic coaching · 2-hour lessons',B:'120-minute Dedicated Class · 2-hour lessons',C:'Online live tutorials · prices per class',D:'E-learning · annual package prices'};
 export function PlanningPrices({prices,editable,onChange}:{prices:Price[];editable:boolean;onChange:(id:string,value:number|null,field?:'amount'|'discount')=>void}){
  return <><nav className="planning-product-nav" aria-label="Price list products">{products.map(p=><a key={p} href={'#price-product-'+p}><strong>Product {p}</strong><small>{descriptions[p]}</small></a>)}</nav><p>All prices in SGD. Large figures show total fee / per-lesson fee. Savings compare with the standard rate for the same lesson count.</p>
  {products.map(product=>{const selected=priceOrder(prices.filter(p=>p.product===product)),groups=[...new Set(selected.map(p=>p.group))];return <section key={product} id={'price-product-'+product} className="planning-product-section"><h2>Product {product} · 2027</h2><p>{descriptions[product]}</p>{['A','B'].includes(product)&&<p>Standard: 1 lesson · Lite: 8 lessons · Package: 12 lessons · 3+ subjects: 36 lessons (3 × 12). {product==='A'?'Registration: $80. Terms 2 & 4 have 14 lessons per subject; totals below use 12.':''}</p>}

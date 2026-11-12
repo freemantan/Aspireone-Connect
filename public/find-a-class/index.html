@@ -35,7 +35,7 @@
 </style><link rel="stylesheet" href="/schedules/results.css"></head><body><main>
 <header class="schedule-header"><a class="brand-link" href="https://aspirehub.com/" aria-label="Aspire Hub home"><img src="/find-a-class/assets/aspire-hub-logo.webp" width="816" height="265" alt="Aspire Hub Education" fetchpriority="high"></a><a class="back-link" href="https://aspirehub.com/">Back to Aspire Hub <span aria-hidden="true">↗</span></a></header>
 <section class="page-intro" aria-labelledby="page-title"><p class="eyebrow">CLASS SCHEDULES</p><h1 id="page-title">Find Classes</h1><p>Find the right tuition class for your child. Compare nearby branches, subjects and weekly schedules.</p></section>
-<div class="product-modes" aria-label="Learning modes"><div class="mode-item"><strong>A. Small Group Coaching</strong><span>At a branch · Typically 2 hours</span></div><div class="mode-item"><strong>B. Physical Tutorial</strong><span>90 minutes · Schedule coming soon</span></div><div class="mode-item"><strong>Live Tutorial</strong><span>Online · 90 minutes</span></div><div class="mode-item"><strong>D. E-Learning</strong><span>Learn anytime · No timetable needed</span></div></div>
+<div class="product-modes" aria-label="Learning modes"><div class="mode-item"><strong>A. Small Group Coaching</strong><span>At a branch · Typically 2 hours</span></div><div class="mode-item"><strong>B. 120-minute Dedicated Class</strong><span>120 minutes · Schedule coming soon</span></div><div class="mode-item"><strong>Live Tutorial</strong><span>Online · 90 minutes</span></div><div class="mode-item"><strong>D. E-Learning</strong><span>Learn anytime · No timetable needed</span></div></div>
 <div id="find-screen"><section class="panel" aria-labelledby="filter-title"><h2 id="filter-title">Choose your classes</h2><p class="help">Choose up to five branches or one zone, then one academic level and any or all subjects.</p><form id="filters">
 <div class="find-grid"><fieldset class="branch-field"><legend>1. Choose branches or a zone</legend><div id="branch-controls"></div></fieldset>
 <div class="course-fields"><label for="level">2. Level<select id="level" required><option value="">Select a level</option></select></label>
@@ -94,7 +94,7 @@ const subjectAliases={
 const subjectName=s=>subjectAliases[s]||s;
 const subjects=r=>[subjectName(r[3])];
 const levels=r=>JSON.parse(r[5]);
-const productLabels={A:'A. Small Group Coaching',B:'B. Physical Tutorial',C:'Live Tutorial',D:'D. E-Learning'};
+const productLabels={A:'A. Small Group Coaching',B:'B. 120-minute Dedicated Class',C:'Live Tutorial',D:'D. E-Learning'};
 const physicalBranches=()=>branches.filter(b=>b[0]!=='LIVE');
 
 
