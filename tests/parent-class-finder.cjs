@@ -1,0 +1,12 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom');
+const html=fs.readFileSync('public/find-a-class/index.html','utf8');
+const dom=new JSDOM(html,{url:'https://connect.aspireone.ai/find-a-class/',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window,d=w.document,ctx=dom.getInternalVMContext();
+let time=540,fail=false;const branchRows=Array.from({length:7},(_,i)=>['B'+i,'Branch '+i,i<6?'East':'West','','','',0,'']);
+w.fetch=async()=>({ok:!fail,json:async()=>({branches:branchRows,data:branchRows.map(b=>['s'+b[0],b[0],b[1],'English','P1','["P1"]',1,time,time+120,'','in_person',2027,1])})});
+w.structuredClone=structuredClone;const run=s=>vm.runInContext(s,ctx),tick=()=>new Promise(r=>setImmediate(r));
+run(d.querySelector('script').textContent);run(fs.readFileSync('public/schedules/results.js','utf8'));
+(async()=>{await tick();const boxes=[...d.querySelectorAll('#branch-controls .zone-grid input')];for(let i=0;i<5;i++)boxes[i].click();assert(boxes[5].disabled);assert.equal(run('selectedBranches.size'),5);boxes[0].click();assert(!boxes[5].disabled);
+const mode=d.getElementById('location-mode');mode.value='zone';mode.dispatchEvent(new w.Event('change'));const zone=d.getElementById('zone');zone.value='East';zone.dispatchEvent(new w.Event('change'));assert.equal(run('selectedBranches.size'),6);zone.value='West';zone.dispatchEvent(new w.Event('change'));assert.equal(run('selectedBranches.size'),1);
+const level=d.getElementById('level');level.value='P1';level.dispatchEvent(new w.Event('change'));d.querySelector('#subject-controls input').click();d.getElementById('filters').dispatchEvent(new w.Event('submit',{cancelable:true}));await tick();assert(d.getElementById('results').textContent.includes('9am'));assert(d.getElementById('results').textContent.includes('Branch 6'));
+time=600;await run('refreshResults()');assert(d.getElementById('results').textContent.includes('10am'));fail=true;await run('refreshResults()');assert(!d.querySelector('#results table'));assert(d.getElementById('results').textContent.includes('Unable to refresh'));
+dom.window.close();console.log('PASS parent search: five-branch cap, exclusive zone with all branches, single level, shared calendar, automatic live refresh and failure handling');})().catch(e=>{dom.window.close();console.error(e);process.exitCode=1});
