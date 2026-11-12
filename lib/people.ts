@@ -61,8 +61,8 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   check(!p.manager||s.users.some(x=>x.id===p.manager&&x.active&&!x.deleted&&(x.roles||[]).includes('Business Manager')),'Select a branch manager with the Business Manager role',400);
   const old=p.id?find(s,'branches',p.id):null;if(old)check(p.version===old.version,'Branch changed. Refresh and retry.',409);
   const manager2=p.manager2===undefined?(old?.manager2||''):p.manager2;
-  check(typeof manager2==='string'&&(!manager2||s.users.some(x=>x.id===manager2&&x.active&&!x.deleted&&(x.roles||[]).includes('Business Manager'))),'Select a second manager with the Business Manager role',400);
-  check(!manager2||manager2!==p.manager,'Choose two different Business Managers',400);
+  check(typeof manager2==='string'&&(!manager2||s.users.some(x=>x.id===manager2&&x.active&&!x.deleted&&['Business Manager','Customer Relationship'].some(r=>(x.roles||[]).includes(r)))),'Select an Assistant Branch Manager with the Business Manager or Customer Relationship role',400);
+  check(!manager2||manager2!==p.manager,'Choose different people for Branch Manager and Assistant Branch Manager',400);
   const crm=p.crm===undefined?(old?.crm||''):p.crm,cres=p.cres===undefined?(old?.cres||[]):p.cres;
   check(typeof crm==='string'&&(!crm||s.users.some(x=>x.id===crm&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select a CRM with the Customer Relationship role',400);
   check(Array.isArray(cres)&&cres.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select members with the Customer Relationship role',400);
