@@ -25,6 +25,7 @@ export function workspaceView(s:State,u:Row){
  v.pendingInvitations.push(...s.invites.filter(i=>!i.board&&i.email===u.email&&i.state==='pending'&&i.expires>now()).map(i=>({id:i.id,token:i.token,boardName:'AspireOne Connect',role:'Company member',expires:i.expires})));
  if(!u.admin){v.users=v.users.map(({mobile,...person}:Row)=>person);if(v.me.id===u.id)v.me.mobile=u.mobile;}
  v.businessRoles=businessRoles;v.branches=s.branches||[];
+ if(!u.admin&&s.branches.some(b=>b.manager===u.id))v.branchPeople=s.users.filter(p=>p.active&&!p.deleted).map(p=>({id:p.id,name:p.name,abbreviation:p.abbreviation,active:p.active,roles:p.roles||[],onboarding:!!p.onboarding}));
  if(s.boards.some(b=>b.kind==='articles'&&role(s,u,b.id)>0))v.noticePeople=s.users.filter(p=>p.active&&!p.deleted).map(p=>({id:p.id,name:p.name,email:p.email,abbreviation:p.abbreviation,roles:p.roles||[],admin:!!p.admin,active:true,onboarding:!!p.onboarding}));
  v.articles=(s.articles||[]).filter(a=>canReadArticle(s,u,a));
  for(const a of v.articles){if(!v.users.some((x:Row)=>x.id===a.author)){const author=s.users.find(x=>x.id===a.author);if(author)v.users.push({id:author.id,name:author.name,abbreviation:author.abbreviation,active:author.active});}}
@@ -55,7 +56,9 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   audit(s,u,'',branch.id,'Branch deleted',branch,null);return;
  }
  if(p.op==='branch.save'){
-  check(u.admin);const name=typeof p.name==='string'?p.name.trim():'',abbreviation=typeof p.abbreviation==='string'?p.abbreviation.trim():'';
+  const managed=p.id?s.branches.find(b=>b.id===p.id):null;check(u.admin||u.active&&!u.deleted&&!u.onboarding&&managed?.manager===u.id,'Only the appointed Branch Manager or System Administrator can change branch assignments',403);
+  if(!u.admin)check(p.name===managed!.name&&p.abbreviation===managed!.abbreviation&&p.manager===managed!.manager,'Only System Administrators can change branch details or appoint the Branch Manager',403);
+  const name=typeof p.name==='string'?p.name.trim():'',abbreviation=typeof p.abbreviation==='string'?p.abbreviation.trim():'';
   check(name&&name.length<=100&&abbreviation&&abbreviation.length<=20,'Enter a branch name and abbreviation',400);
   check(!s.branches.some(b=>b.id!==p.id&&(b.name.toLowerCase()===name.toLowerCase()||b.abbreviation.toLowerCase()===abbreviation.toLowerCase())),'Branch name and abbreviation must be unique',400);
   check(!p.manager||s.users.some(x=>x.id===p.manager&&x.active&&!x.deleted&&(x.roles||[]).includes('Business Manager')),'Select a branch manager with the Business Manager role',400);

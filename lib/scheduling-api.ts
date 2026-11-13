@@ -21,7 +21,7 @@ async function scheduleRPC(name:string,args:Record<string,unknown>){
 }
 export async function schedulingAPI(request:Request,user:Row){
  const {state}=await load();
- const assigned=(branch:string,name='')=>!!user.admin||(user.roles||[]).includes('Technology')||state.branches.some(b=>(b.scheduleId===branch||b.id==='schedule-'+branch||name&&b.name.trim().toLowerCase()===name.trim().toLowerCase())&&(b.manager===user.id||b.manager2===user.id||b.crm===user.id||(b.cres||[]).includes(user.id)));
+ const assigned=(branch:string,name='')=>!!user.admin||(user.roles||[]).includes('Technology')||state.branches.some(b=>(b.scheduleId===branch||b.id==='schedule-'+branch||name&&b.name.trim().toLowerCase()===name.trim().toLowerCase())&&(b.manager===user.id||b.manager2===user.id||b.crm===user.id));
  if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});const permissions=Object.fromEntries(catalogue.branches.map((b:any)=>[b[0],assigned(b[0],b[1])?2:1]));return {...catalogue,permissions,records:catalogue.records.filter((r:any)=>permissions[r.branch_id]>=2),members:[],globalMembers:[],canManage:false,canManageAll:false,isSystemAdmin:!!user.admin,assignmentBasedAccess:true};}
  check(request.method==='POST','Method not allowed',405);
  check(Number(request.headers.get('content-length')||0)<=40000,'Schedule request is too large.',413);
@@ -50,6 +50,7 @@ export async function schedulingAPI(request:Request,user:Row){
  }
  if(p.op==='save'){
   check(p.id==null||typeof p.id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(p.id),'Invalid class.',400);
+  check(p.data?.classroom===undefined||typeof p.data.classroom==='string'&&p.data.classroom.length<=100,'Class Room must be up to 100 characters',400);
   check(p.data&&typeof p.data==='object'&&!Array.isArray(p.data),'Invalid class.',400);
   for(const field of ['academic_year','day','start_minute','end_minute'])check(Number.isInteger(p.data[field]),'Enter valid class times and term.',400);
   check(Number.isInteger(p.data.term)||(p.data.product_mode==='C'&&p.data.term===null),'Enter a valid term.',400);

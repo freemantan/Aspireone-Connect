@@ -497,3 +497,15 @@ test('pending invitees can hold all branch assignments before acceptance',()=>{c
 test('branches support two distinct Business Managers including pending invitees',()=>{const {s,admin,viewer,editor}=setup();view(s,admin);viewer.roles=['Business Manager'];editor.roles=['Business Manager'];editor.onboarding=true;const p={op:'branch.save',name:'Two managers',abbreviation:'TM',manager:viewer.id,manager2:editor.id};mutate(s,admin,p);const b=s.branches[0];assert.equal(b.manager2,editor.id);assert.throws(()=>mutate(s,admin,{...p,id:b.id,version:b.version,manager2:viewer.id}),/different/);assert.throws(()=>mutate(s,admin,{...p,id:b.id,version:b.version,manager2:'missing'}),/Business Manager/);mutate(s,admin,{...p,id:b.id,version:b.version,manager2:''});assert.equal(b.manager2,'');});
 
 test('Assistant Branch Manager accepts pending Customer Relationship users but Branch Manager still requires Business Manager',()=>{const {s,admin,viewer,editor}=setup();view(s,admin);viewer.roles=['Business Manager'];editor.roles=['Customer Relationship'];editor.onboarding=true;const p={op:'branch.save',name:'Assistant CRE',abbreviation:'AC',manager:viewer.id,manager2:editor.id};mutate(s,admin,p);assert.equal(s.branches[0].manager2,editor.id);assert.throws(()=>mutate(s,admin,{...p,name:'Invalid primary',abbreviation:'IPX',manager:editor.id,manager2:''}),/Business Manager/);});
+
+test('appointed Branch Manager can assign staff only on own branch without changing manager or branch details',()=>{
+ const {s,admin,viewer,editor}=setup();view(s,admin);viewer.roles=['Business Manager'];editor.roles=['Customer Relationship'];
+ mutate(s,admin,{op:'branch.save',name:'Delegated',abbreviation:'DG',manager:viewer.id});const b=s.branches.find(x=>x.name==='Delegated')!;
+ const p={op:'branch.save',id:b.id,version:b.version,name:b.name,abbreviation:b.abbreviation,manager:b.manager,manager2:editor.id,crm:editor.id,cres:[editor.id]};
+ mutate(s,viewer,p);assert.equal(b.manager2,editor.id);assert.equal(b.crm,editor.id);
+ assert.throws(()=>mutate(s,viewer,{...p,version:b.version,manager:editor.id}),/System Administrators/);
+ assert.throws(()=>mutate(s,viewer,{...p,version:b.version,name:'Renamed'}),/System Administrators/);
+ assert.throws(()=>mutate(s,editor,{...p,version:b.version}),/appointed Branch Manager/);
+ assert.throws(()=>mutate(s,viewer,{op:'branch.delete',id:b.id,version:b.version}));
+ assert.ok(view(s,viewer).branchPeople.some((x:any)=>x.id===editor.id));assert.equal(view(s,viewer).invites.length,0);
+});

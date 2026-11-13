@@ -20,7 +20,7 @@ begin
  if coalesce(u->'roles','[]'::jsonb) ? 'Technology' then access:=2; end if;
  if exists(select 1 from public.ao_workspace w,jsonb_array_elements(coalesce(w.state->'branches','[]'::jsonb)) b where w.id=1
   and (b->>'scheduleId'=p_branch or b->>'id'='schedule-'||p_branch or lower(trim(b->>'name'))=lower(trim(branch_name)))
-  and (b->>'manager'=p_actor or b->>'manager2'=p_actor or b->>'crm'=p_actor or coalesce(b->'cres','[]'::jsonb) ? p_actor)) then access:=2; end if;
+  and (b->>'manager'=p_actor or b->>'manager2'=p_actor or b->>'crm'=p_actor)) then access:=2; end if;
  if access<p_min then raise exception 'SCHEDULE_FORBIDDEN'; end if;
  return access;
 end; $$;
