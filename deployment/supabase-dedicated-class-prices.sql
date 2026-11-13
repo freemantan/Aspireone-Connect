@@ -1,5 +1,5 @@
 -- Apply to current draft AND published prices, preserving IDs and historical 2026 fees.
--- No class start/end changes. Back up tables before running.
+-- Extends active Product B classes shorter than 120 minutes, preserving start times.
 begin;
 create or replace function pg_temp.align_dedicated(payload jsonb) returns jsonb language plpgsql as $$
 declare rows jsonb:=payload->'prices'; result jsonb:='[]'; b jsonb; a jsonb;
@@ -37,4 +37,22 @@ begin
  end case;
 end $$;
 update public.ao_workspace set state=pg_temp.dedicated_labels(state),revision=revision+1 where state is distinct from pg_temp.dedicated_labels(state);
+-- Stop rather than creating a session that crosses midnight.
+do $$ begin
+ if exists(select 1 from public.ao_schedule_sessions where product_mode='B' and status<>'discontinued' and end_minute-start_minute<120 and start_minute+120>1440) then
+ raise exception 'A Product B class would extend past midnight. Review its start time before running this migration.';
+ end if;
+end $$;
+update public.ao_schedule_sessions
+set end_minute=start_minute+120,
+ raw_time=format('%s:%s–%s:%s',start_minute/60,lpad((start_minute%60)::text,2,'0'),(start_minute+120)/60,lpad(((start_minute+120)%60)::text,2,'0')),
+ revision=revision+1
+where product_mode='B' and status<>'discontinued' and start_minute is not null and end_minute is not null and end_minute-start_minute<120;
 commit;
+-- Review any resulting teacher timetable overlaps before confirming bookings.
+select a.id,a.branch_id,a.subject,a.day,a.start_minute,a.end_minute,b.id as overlapping_class
+from public.ao_schedule_sessions a join public.ao_schedule_sessions b on a.id<>b.id
+ and a.coach is not null and a.coach<>'' and a.coach=b.coach
+ and a.day=b.day and a.academic_year=b.academic_year and a.term is not distinct from b.term
+ and a.start_minute<b.end_minute and b.start_minute<a.end_minute
+where a.product_mode='B' and a.status<>'discontinued' and b.status<>'discontinued';
