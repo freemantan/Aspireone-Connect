@@ -358,4 +358,4 @@ function buildWeekEditor(){
  search.addEventListener('submit',event=>{event.preventDefault();if(busy||!branch.value||!level.value)return;const subjects=[...subjectBoxes].filter(([,box])=>box.checked).map(([name])=>name);if(!subjects.length)return;searched={branch:branch.value,level:level.value,subjects,year:Number(year.value),term:Number(term.value),coach:coachSearch.value.trim().normalize('NFKC').toLocaleLowerCase(),coachLabel:coachSearch.value.trim()};selected=null;pending=null;operation='';dragged=null;detail.hidden=true;confirm.hidden=true;placement.hidden=true;feedback.hidden=true;renderGrid();weekHost.scrollIntoView?.({behavior:'smooth',block:'start'})});year.value='2027';term.value='1';updateBranches();
 }
 
-</script><script src="/schedules/results.js"></script></body></html>
+</script><script src="/schedules/results.js"></script><script src="/schedules/export-csv.js"></script></body></html>
