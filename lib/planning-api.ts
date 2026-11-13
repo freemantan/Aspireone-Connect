@@ -1,5 +1,5 @@
 import {canViewPlan,validateMemberAccess,validatePlanRoleAccess} from './planning-access';
-import {calculatePriceTiers,proposalVersion} from './price-calculations';
+import {alignDedicatedPrices,calculatePriceTiers,proposalVersion} from './price-calculations';
 import {linkedOnlineCommissions} from './online-commissions';
 import {materializeBudget} from './budget-drivers';
 import {supabase,rpc} from './supabase';
@@ -18,6 +18,7 @@ export async function planningAPI(r:Request,user:Row){
  if(r.method!=='GET'){check(r.method==='POST','Method not allowed',405);check(manage,'Only administrators can save drafts or publish',403);}
  const [allEntities,priceRows,commissionRows]=await Promise.all([rows('ao_plan_entities'),rows(tables.prices),rows(tables.commissions)]);
  const entities=allEntities.filter(e=>['c0000000-0000-4000-8000-000000000001','c0000000-0000-4000-8000-000000000002'].includes(e.id));
+ for(const row of priceRows){if(row.payload?.prices)row.payload.prices=alignDedicatedPrices(row.payload.prices);if(row.published_data?.payload?.prices)row.published_data.payload.prices=alignDedicatedPrices(row.published_data.payload.prices);}
  const price=priceRows.find(x=>x.id===settingsId),commission=commissionRows.find(x=>x.id===settingsId);
  const priceAccess=canViewPlan(price,u),commissionAccess=canViewPlan(commission,u);
  const pubPrice=priceAccess?publishedRecord(price):null,pubCommission=commissionAccess?publishedRecord(commission):null;

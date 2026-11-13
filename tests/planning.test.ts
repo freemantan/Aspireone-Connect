@@ -10,7 +10,7 @@ test('unknowns propagate; zeros remain valid; circular and missing references re
 test('invalid amounts, duplicate IDs, and unsupported commission combinations are rejected',()=>{const r=clone(seedRules);r.prices[0].amount=-1;assert.throws(()=>validateRules(r));r.prices[0].amount=1.1;assert.throws(()=>validateRules(r));const b=budgetTemplate();b.lines[1].id=b.lines[0].id;assert.throws(()=>validateBudget(b,seedRules));const b2=budgetTemplate();Object.assign(b2.lines[1],{method:'percent',baseId:'sales',rateSource:'commission',product:'C',channel:'Online',saleType:'initial'});assert.throws(()=>validateBudget(b2,seedRules),/commission/);});
 test('Aspire Online template has annual costs and ramp result from original model',()=>{const b=budgetTemplate(true),r=calculate(b,seedRules);assert.equal(annual(r.rows.ah),10198800);assert.equal(annual(r.rows.tech),7800000);assert.equal(r.rows.launch[0],3000000);assert.equal(r.rows.launch[1],0);assert.equal(annual(r.rows.director),1308000);assert.ok(Math.abs(annual(r.net)!-(-7690950))<10);});
 test('only directors and senior managers analyze; only active admins persist',()=>{const s=initial(),u={id:'staff',active:true,roles:[]},e:any={id:'centre',board_id:'board-1'};s.members.push({id:'m',user:u.id,board:'board-1',role:'Manage'});assert.equal(entityAccess(s,u,e),1);assert.equal(entityAccess(s,{...u,roles:['Director']},e),2);assert.equal(entityAccess(s,{...u,roles:['Senior Manager']},e),2);assert.equal(manager(s,{...u,roles:['Director']}),false);assert.equal(entityAccess(s,{...u,admin:true},e),3);assert.equal(entityAccess(s,{...u,admin:true,active:false},e),0);});
-test('latest workbook prices retain every displayed tier and missing-package distinction',()=>{assert.equal(seedRules.prices.length,120);const amount=(id:string)=>seedRules.prices.find(p=>p.id===id)!.amount;assert.equal(amount('A-10-10'),9700);assert.equal(amount('B-22-9'),7700);assert.equal(amount('C-34-11'),4320);assert.equal(amount('D-61-11'),109400);assert.equal(amount('D-51-12'),null);assert.equal(amount('A-14-11'),11200);assert.equal(amount('B-26-11'),9100);assert.equal(seedRules.prices.find(p=>p.id==='A-11-9')!.level,'Secondary 1–2 / IP·IB Y1–2');assert.equal(seedRules.prices.find(p=>p.id==='B-25-9')!.level,'JC / IB / IP Y5–Y6');});
+test('latest workbook prices retain every displayed tier and missing-package distinction',()=>{assert.equal(seedRules.prices.length,120);const amount=(id:string)=>seedRules.prices.find(p=>p.id===id)!.amount;assert.equal(amount('A-10-10'),9700);assert.equal(amount('B-22-9'),10200);assert.equal(amount('C-34-11'),4320);assert.equal(amount('D-61-11'),109400);assert.equal(amount('D-51-12'),null);assert.equal(amount('A-14-11'),11200);assert.equal(amount('B-26-11'),11200);assert.equal(seedRules.prices.find(p=>p.id==='A-11-9')!.level,'Secondary 1–2 / IP·IB Y1–2');assert.equal(seedRules.prices.find(p=>p.id==='B-25-9')!.level,'JC / IB / IP Y5–Y6');});
 
 test("recipient payments round independently at half-dollar boundaries",()=>{assert.deepEqual(earnings(1000,0,[4.9,5,5.1,0],"gross").commissions,[0,100,100,0]);const r=earnings(1000,0,[5,5,5,5],"gross");assert.equal(r.retained,600);assert.equal(r.teacher!+r.commissions.reduce<number>((a,b)=>a+b!,0)+r.retained!,1000);});
 
@@ -191,18 +191,18 @@ test('separate budget tabs select only their own entities and published records'
 import {applyOctoberPrices,editPrice,priceFigures,priceOrder} from '../lib/price-calculations';
 test('approved October prices use corrected B levels and eight lesson Lite totals',()=>{
  const prices=applyOctoberPrices(seedRules.prices),find=(id:string)=>prices.find(p=>p.id===id)!;
- assert.equal(find('B-26-9').amount,9900);assert.equal(find('B-25-9').amount,10700);
+ assert.equal(find('B-26-9').amount,13300);assert.equal(find('B-25-9').amount,14600);
  const lite=priceFigures(find('B-26-10'),find('B-26-9'));
- assert.equal(lite.units,8);assert.equal(lite.total,76000);assert.equal(lite.totalDiscount,3200);assert.equal(lite.previousTotal,null);
+ assert.equal(lite.units,8);assert.equal(lite.total,100800);assert.equal(lite.totalDiscount,5600);assert.equal(lite.previousTotal,null);
  assert.equal(priceFigures(find('A-8-12'),find('A-8-9')).total,259200);
  assert.deepEqual(prices.filter(p=>['C','D'].includes(p.product)),seedRules.prices.filter(p=>['C','D'].includes(p.product)));
  const ordered=priceOrder(prices);assert.ok(ordered.findIndex(p=>p.id==='B-26-9')<ordered.findIndex(p=>p.id==='B-25-9'));
 });
 test('dollar discounts recalculate tier prices when the standard or discount changes',()=>{
  let prices=applyOctoberPrices(seedRules.prices);
- prices=editPrice(prices,'B-26-9',10000);assert.equal(prices.find(p=>p.id==='B-26-10')!.amount,9600);
- prices=editPrice(prices,'B-26-10',600,'discount');assert.equal(prices.find(p=>p.id==='B-26-10')!.amount,9400);
- prices=editPrice(prices,'B-26-10',11000,'discount');assert.throws(()=>validateRules({...seedRules,prices}));
+ prices=editPrice(prices,'A-14-9',10000);assert.equal(prices.find(p=>p.id==='B-26-10')!.amount,9300);
+ prices=editPrice(prices,'A-14-10',600,'discount');assert.equal(prices.find(p=>p.id==='B-26-10')!.amount,9400);
+ prices=editPrice(prices,'A-14-10',11000,'discount');assert.throws(()=>validateRules({...seedRules,prices}));
 });
 
 test('approved JC prices retain rounded units, block totals and existing prices',()=>{
@@ -243,4 +243,9 @@ test('commission cost breakdown separates regular costs and per-student Cold Cal
  assert.equal(commissionCosts(100000,40,[5,0,0,0],'gross',{...scenario,product:'D'}).commissions[0],5000);
  assert.equal(commissionCosts(null,40,[5,0,0,0],'gross',scenario).grossProfit,null);
  assert.equal(commissionCosts(100000,40,[5,0,0,0],'gross',{...scenario,students:null}).promotionCost,null);
+});
+
+test('Dedicated Class always matches all Product A current price tiers without changing historical fees',()=>{
+ const prices=applyOctoberPrices(seedRules.prices);
+ for(const b of prices.filter(p=>p.product==='B')){const a=prices.find(p=>p.product==='A'&&p.level===b.level&&p.tier===b.tier)!;assert.ok(a);assert.equal(b.amount,a.amount);assert.equal(b.discount,a.discount);assert.equal(b.units,a.units);}
 });

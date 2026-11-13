@@ -19,7 +19,7 @@
 </style><link rel="stylesheet" href="/schedules/results.css"></head><body><main>
 <header class="schedule-header"><div><h1>Scheduling</h1><p class="muted">Aspire Hub · Term 1 2027</p></div></header>
 <nav class="schedule-tabs" aria-label="Scheduling"><button id="find-tab" type="button" aria-current="page">Find Classes</button><button id="edit-tab" type="button">Manage Classes</button></nav>
-<div class="panel product-modes" aria-label="Learning modes"><strong>A. Small Group Coaching</strong> · Physical classroom, typically 2 hours<br><strong>B. 120-minute Dedicated Class</strong> · 120 minutes · Schedule coming soon<br><strong>C. Live Tutorial</strong> · Online, 90 minutes · When selected, matching classes appear after branch schedules<br><strong>D. E-Learning</strong> · Self-learning anytime; no timetable required</div><div id="find-screen"><section class="panel" aria-labelledby="filter-title"><h2 id="filter-title">Find Classes</h2><p class="help">Choose branches, Online Classes or both, then select a level and subjects and click Search.</p><form id="filters">
+<div class="panel product-modes" aria-label="Learning modes"><strong>A. Small Group Coaching</strong> · Physical classroom, typically 2 hours<br><strong>B. ★ Dedicated Class</strong> · 120 minutes · Students with similar subject proficiency<br><strong>C. Live Tutorial</strong> · Online, 90 minutes · When selected, matching classes appear after branch schedules<br><strong>D. E-Learning</strong> · Self-learning anytime; no timetable required</div><div id="find-screen"><section class="panel" aria-labelledby="filter-title"><h2 id="filter-title">Find Classes</h2><p class="help">Choose branches, Online Classes or both, then select a level and subjects and click Search.</p><form id="filters">
 <div class="find-grid"><fieldset class="branch-field"><legend>1. Zone and branches</legend><div id="branch-controls"></div></fieldset>
 <div class="course-fields"><label for="level">2. Level<select id="level" required><option value="">Select a level</option></select></label>
 <label for="find-coach">3. Coach<input id="find-coach" type="search" list="find-coach-options" placeholder="All coaches, or enter a name / initials"><datalist id="find-coach-options"></datalist></label><fieldset class="subject-field"><legend>4. Subjects</legend><div id="subject-controls"><p class="help">Select a level to see its subjects.</p></div></fieldset></div></div>
@@ -38,7 +38,7 @@ const subjectAliases=SUBJECTALIASES;
 const subjectName=s=>subjectAliases[s]||s;
 const subjects=r=>[subjectName(r[3])];
 const levels=r=>JSON.parse(r[5]);
-const productLabels={A:'A. Small Group Coaching',B:'B. 120-minute Dedicated Class',C:'C. Live Tutorial',D:'D. E-Learning'};
+const productLabels={A:'A. Small Group Coaching',B:'B. ★ Dedicated Class',C:'C. Live Tutorial',D:'D. E-Learning'};
 const physicalBranches=()=>branches.filter(b=>b[0]!=='LIVE');
 
 

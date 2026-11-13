@@ -12,13 +12,20 @@ export function priceFigures(p:Price,standard:Price|undefined){
  return {units,total:p.amount===null?null:p.amount*units,discount,totalDiscount:discount===null?null:discount*units,percent:base&&discount!==null?discount/base*100:null,previousTotal:p.previous==null?null:p.previous*units};
 }
 // Persisted dollar discounts drive A/B tier prices, never rounded percentages.
-export function calculatePriceTiers(prices:Price[]):Price[]{return prices.map(p=>{
+export function calculatePriceTiers(prices:Price[]):Price[]{return alignDedicatedPrices(prices.map(p=>{
  if(!['A','B'].includes(p.product)||!p.tier||p.discount===undefined)return p;
  const standard=prices.find(x=>x.product===p.product&&x.group===p.group&&x.level===p.level&&x.tier===0);
  return {...p,amount:standard?.amount==null||p.discount===null?null:standard.amount-p.discount};
-});}
+}));}
 export function editPrice(prices:Price[],id:string,value:number|null,field:'amount'|'discount'='amount'):Price[]{
  return calculatePriceTiers(prices.map(p=>p.id===id?{...p,[field]:value}:p));
 }
 
 export function addJCPrices(prices:Price[]):Price[]{return [...prices,...jcPrices.filter(p=>!prices.some(x=>x.id===p.id))];}
+
+export function alignDedicatedPrices(prices:Price[]):Price[]{return prices.map(p=>{
+ if(p.product!=='B')return p;
+ const a=prices.find(x=>x.product==='A'&&x.level===p.level&&x.tier===p.tier);
+ if(!a)return p;
+ return {...p,group:'Dedicated Class',amount:a.amount,discount:a.discount,units:a.units,unavailable:a.unavailable};
+});}

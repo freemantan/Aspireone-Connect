@@ -2,7 +2,7 @@ begin;
 alter table public.ao_schedule_sessions add column if not exists product_mode text not null default 'A' check(product_mode in ('A','B','C'));
 alter table public.ao_schedule_sessions alter column term drop not null;
 create table if not exists public.ao_schedule_product_modes(id text primary key,label text not null,scheduled boolean not null,default_minutes integer);
-insert into public.ao_schedule_product_modes values('A','A. Small Group Coaching',true,120),('B','B. 120-minute Dedicated Class',true,120),('C','C. Live Tutorial',true,90),('D','D. E-Learning',false,null) on conflict(id) do update set label=excluded.label,scheduled=excluded.scheduled,default_minutes=excluded.default_minutes;
+insert into public.ao_schedule_product_modes values('A','A. Small Group Coaching',true,120),('B','B. Dedicated Class',true,120),('C','C. Live Tutorial',true,90),('D','D. E-Learning',false,null) on conflict(id) do update set label=excluded.label,scheduled=excluded.scheduled,default_minutes=excluded.default_minutes;
 alter table public.ao_schedule_product_modes enable row level security;
 revoke all on public.ao_schedule_product_modes from public,anon,authenticated;
 grant select on public.ao_schedule_product_modes to service_role;
