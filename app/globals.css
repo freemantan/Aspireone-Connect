@@ -125,3 +125,8 @@
 .planning-scroll .commission-fees-table{width:100%;min-width:0;table-layout:fixed;font-size:13px}
 .planning-scroll .commission-fees-table th,.planning-scroll .commission-fees-table td{min-width:0;padding:9px 5px;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
 .planning-scroll .commission-fees-table th:first-child{width:22%}
+
+.member-group-manager-picker{display:flex;flex-direction:column;gap:8px;min-width:0;text-align:left}
+.detail-body .member-group-manager-picker .member-group-manager-option{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;width:100%;min-height:44px;padding:10px 12px;margin:0;text-align:left;font-weight:400;cursor:pointer}
+.member-group-manager-option input[type="checkbox"]{flex:0 0 18px;width:18px;height:18px;margin:0;padding:0}
+.member-group-manager-option span{flex:1;min-width:0;line-height:1.5;white-space:normal;overflow-wrap:normal;word-break:normal}
