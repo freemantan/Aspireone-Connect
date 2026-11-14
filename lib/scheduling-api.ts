@@ -1,3 +1,4 @@
+import {managesGroup} from './member-groups';
 import {load} from './supabase-store';
 import {settings} from './supabase';
 import {AppError,check,type Row} from './model';
@@ -21,8 +22,8 @@ async function scheduleRPC(name:string,args:Record<string,unknown>){
 }
 export async function schedulingAPI(request:Request,user:Row){
  const {state}=await load();
- const assigned=(branch:string,name='')=>!!user.admin||(user.roles||[]).includes('Technology')||state.branches.some(b=>(b.scheduleId===branch||b.id==='schedule-'+branch||name&&b.name.trim().toLowerCase()===name.trim().toLowerCase())&&(b.manager===user.id||b.manager2===user.id||b.crm===user.id||(b.cres||[]).includes(user.id)));
- if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});const permissions=Object.fromEntries(catalogue.branches.map((b:any)=>[b[0],assigned(b[0],b[1])?2:1]));return {...catalogue,permissions,records:catalogue.records.filter((r:any)=>permissions[r.branch_id]>=2),members:[],globalMembers:[],canManage:false,canManageAll:false,isSystemAdmin:!!user.admin,assignmentBasedAccess:true};}
+ const assigned=(branch:string,name='')=>!!user.admin||(user.roles||[]).includes('Technology')||state.branches.some(b=>(b.scheduleId===branch||b.id==='schedule-'+branch||name&&b.name.trim().toLowerCase()===name.trim().toLowerCase())&&(managesGroup(state,user,b.memberGroupId)||b.manager===user.id||b.manager2===user.id||b.crm===user.id||(b.cres||[]).includes(user.id)));
+ if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});const permissions=Object.fromEntries(catalogue.branches.map((b:any)=>[b[0],assigned(b[0],b[1])?2:1]));const branchStaff=Object.fromEntries(catalogue.branches.filter((b:any)=>permissions[b[0]]>=2).map((b:any)=>{const branch=state.branches.find(x=>x.scheduleId===b[0]||x.id==='schedule-'+b[0]||x.name===b[1]);const ids=branch?[...(branch.people||[]),branch.manager,branch.manager2,branch.crm,...(branch.cres||[])]:[];return [b[0],state.users.filter(p=>p.active&&!p.deleted&&ids.includes(p.id)).map(p=>({id:p.id,name:p.name,abbreviation:p.abbreviation,roles:p.roles||[]}))];}));return {...catalogue,branchStaff,users:[],permissions,records:catalogue.records.filter((r:any)=>permissions[r.branch_id]>=2),members:[],globalMembers:[],canManage:false,canManageAll:false,isSystemAdmin:!!user.admin,assignmentBasedAccess:true};}
  check(request.method==='POST','Method not allowed',405);
  check(Number(request.headers.get('content-length')||0)<=40000,'Schedule request is too large.',413);
  const raw=await request.text();check(new TextEncoder().encode(raw).length<=40000,'Schedule request is too large.',413);

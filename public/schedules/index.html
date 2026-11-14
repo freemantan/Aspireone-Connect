@@ -320,6 +320,10 @@ function buildWeekEditor(){
  const product=field(grid,'Product mode','detail-product','text',['A','B',...(permitted.some(b=>b[0]==='LIVE')?['C']:[])].map(code=>[code,productLabels[code]]));
  const timeOptions=[['','Select time'],...Array.from({length:49},(_,i)=>{const n=540+i*15;return [String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0'),clock(n)]})];
  const slot=el('div',null,'manage-time-slot');slot.append(el('strong','Time Slot'));const timePair=el('div',null,'manage-time-pair');slot.append(timePair);grid.append(slot);const start=field(timePair,'Start','detail-start','text',timeOptions),end=field(timePair,'End','detail-end','text',timeOptions),classroom=field(grid,'Class Room','detail-classroom'),coach=field(grid,'Coach','detail-coach');classroom.maxLength=100;coach.maxLength=200;
+ const coachChoices=el('datalist');coachChoices.id='branch-coach-options';coach.setAttribute('list',coachChoices.id);grid.append(coachChoices);
+ function updateBranchCoaches(){coachChoices.replaceChildren();for(const p of (catalogue.branchStaff?.[dBranch.value]||[]).filter(p=>(p.roles||[]).includes('Coach'))){const option=el('option');option.value=p.name;option.label=p.abbreviation||p.name;coachChoices.append(option)}}
+ dBranch.addEventListener('change',updateBranchCoaches);coach.addEventListener('focus',updateBranchCoaches);
+
  const dYear=field(grid,'Academic year','detail-year','number');dYear.min='2027';dYear.max='2100';const dTerm=field(grid,'Term','detail-term','text',[['0','Not specified'],...[1,2,3,4].map(n=>[String(n),'Term '+n])]);
  const mode={value:'in_person'},format={value:'coaching'};
  const from=field(grid,'Effective from (optional)','detail-from','date'),until=field(grid,'Effective until (optional)','detail-until','date'),notes=field(grid,'Class notes (optional)','detail-notes');notes.maxLength=2000;

@@ -509,3 +509,28 @@ test('appointed Branch Manager can assign staff only on own branch without chang
  assert.throws(()=>mutate(s,viewer,{op:'branch.delete',id:b.id,version:b.version}));
  assert.ok(view(s,viewer).branchPeople.some((x:any)=>x.id===editor.id));assert.equal(view(s,viewer).invites.length,0);
 });
+
+import {managedGroupIds,managesGroup,managesBranch} from '../lib/member-groups';
+test('member group management requires explicit assignment and does not cross branch boundaries',()=>{
+ const {s,admin,viewer,editor}=setup();syncAdministrationBranches(s);viewer.roles=['Member Group Manager'];editor.roles=['Coach'];
+ mutate(s,admin,{op:'memberGroup.save',name:'Group One',managers:[viewer.id]});mutate(s,admin,{op:'memberGroup.save',name:'Group Two',managers:[]});
+ const [one,two]=s.memberGroups;const a=s.branches[0],b=s.branches[1];a.memberGroupId=one.id;b.memberGroupId=two.id;editor.memberGroupId=one.id;
+ assert.deepEqual(managedGroupIds(s,viewer),[one.id]);assert(managesBranch(s,viewer,a));assert(!managesBranch(s,viewer,b));
+ assert.throws(()=>mutate(s,viewer,{op:'memberGroup.save',name:'Other',managers:[viewer.id]}));
+ mutate(s,viewer,{op:'branch.save',...a,people:[editor.id]});assert(a.people.includes(editor.id));
+ assert.throws(()=>mutate(s,viewer,{op:'branch.save',...b,people:[editor.id]}));
+ assert.throws(()=>mutate(s,viewer,{op:'branch.save',...a,memberGroupId:two.id}));
+ viewer.roles=[];assert(!managesBranch(s,viewer,a));viewer.roles=['Member Group Manager'];one.managers=[];assert(!managesBranch(s,viewer,a));
+});
+test('group managers invite scoped staff, cannot elevate roles, and cannot edit or resend outside their group',()=>{
+ const {s,admin,viewer,editor}=setup();syncAdministrationBranches(s);viewer.roles=['Member Group Manager'];
+ mutate(s,admin,{op:'memberGroup.save',name:'One',managers:[viewer.id]});mutate(s,admin,{op:'memberGroup.save',name:'Two',managers:[]});const [one,two]=s.memberGroups;
+ const invite=mutate(s,viewer,{op:'company.invite',name:'New Coach',email:'newcoach@example.com',roles:['Coach'],memberGroupId:one.id});provisionInvitedPeople(s);const person=s.users.find(p=>p.email===invite.email)!;assert.equal(person.memberGroupId,one.id);
+ for(const role of ['System Administrator','Technology','Director','Member Group Manager'])assert.throws(()=>mutate(s,viewer,{op:'company.invite',name:'Elevated',email:'elevated@example.com',roles:[role],memberGroupId:one.id}));
+ assert.throws(()=>mutate(s,viewer,{op:'company.invite',name:'Other',email:'other@example.com',roles:['Coach'],memberGroupId:two.id}));
+ mutate(s,viewer,{op:'person.edit',kind:'users',id:person.id,name:'Coach Edited',mobile:'',roles:['Coach'],memberGroupId:one.id});assert.equal(person.name,'Coach Edited');
+ assert.throws(()=>mutate(s,viewer,{op:'person.edit',kind:'users',id:person.id,name:'Coach',mobile:'',roles:['Technology']}));
+ assert.throws(()=>mutate(s,viewer,{op:'person.edit',kind:'users',id:person.id,name:'Coach',mobile:'',memberGroupId:two.id}));
+ const other=mutate(s,admin,{op:'company.invite',name:'Other Coach',email:'othercoach@example.com',roles:['Coach'],memberGroupId:two.id});assert.throws(()=>mutate(s,viewer,{op:'invite.update',id:other.id}));
+ const projected=view(s,viewer);assert(projected.invites.some((i:any)=>i.id===invite.id));assert(!projected.invites.some((i:any)=>i.id===other.id));assert(!projected.invites.some((i:any)=>i.token));assert(!projected.administrationUsers.some((u:any)=>u.id===editor.id));
+});

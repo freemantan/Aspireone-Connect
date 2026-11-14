@@ -1,3 +1,4 @@
+import {managedGroupIds,managesGroup,managesBranch,scopedPerson,groupStaffRoles} from './member-groups';
 import {validAccess,accessLevel} from './access';
 import {learningBoardId} from './learning';
 import {noticeBoardId,noticeGroups,noticeGroupAccess} from './notice-board';
@@ -25,7 +26,11 @@ export function workspaceView(s:State,u:Row){
  v.pendingInvitations.push(...s.invites.filter(i=>!i.board&&i.email===u.email&&i.state==='pending'&&i.expires>now()).map(i=>({id:i.id,token:i.token,boardName:'AspireOne Connect',role:'Company member',expires:i.expires})));
  if(!u.admin){v.users=v.users.map(({mobile,...person}:Row)=>person);if(v.me.id===u.id)v.me.mobile=u.mobile;}
  v.businessRoles=businessRoles;v.branches=s.branches||[];
- if(!u.admin&&s.branches.some(b=>b.manager===u.id))v.branchPeople=s.users.filter(p=>p.active&&!p.deleted).map(p=>({id:p.id,name:p.name,abbreviation:p.abbreviation,active:p.active,roles:p.roles||[],onboarding:!!p.onboarding}));
+ const groupIds=managedGroupIds(s,u);v.managedGroupIds=groupIds;v.memberGroups=(s.memberGroups||[]).filter(g=>u.admin||groupIds.includes(g.id));
+ v.administrationUsers=u.admin?v.users:s.users.filter(p=>groupIds.includes(p.memberGroupId)).map(({googleSub,...p})=>p);
+ if(!u.admin&&groupIds.length)v.invites=s.invites.filter(i=>groupIds.includes(i.memberGroupId)).map(({token,...i})=>i);
+ if(!u.admin)v.branches=v.branches.filter((b:Row)=>managesBranch(s,u,b)||b.manager2===u.id||b.crm===u.id||(b.cres||[]).includes(u.id));
+ if(!u.admin&&s.branches.some(b=>managesBranch(s,u,b)))v.branchPeople=s.users.filter(p=>p.active&&!p.deleted&&(groupIds.includes(p.memberGroupId)||s.branches.some(b=>b.manager===u.id&&(b.memberGroupId||'')===(p.memberGroupId||'')))).map(p=>({id:p.id,name:p.name,abbreviation:p.abbreviation,active:p.active,roles:p.roles||[],memberGroupId:p.memberGroupId,onboarding:!!p.onboarding}));
  if(s.boards.some(b=>b.kind==='articles'&&role(s,u,b.id)>0))v.noticePeople=s.users.filter(p=>p.active&&!p.deleted).map(p=>({id:p.id,name:p.name,email:p.email,abbreviation:p.abbreviation,roles:p.roles||[],admin:!!p.admin,active:true,onboarding:!!p.onboarding}));
  v.articles=(s.articles||[]).filter(a=>canReadArticle(s,u,a));
  for(const a of v.articles){if(!v.users.some((x:Row)=>x.id===a.author)){const author=s.users.find(x=>x.id===a.author);if(author)v.users.push({id:author.id,name:author.name,abbreviation:author.abbreviation,active:author.active});}}
@@ -50,14 +55,22 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   else{const person=s.users.find(x=>x.id===p.user);check(person&&!person.deleted&&person.active,'Choose an active company member',400);check(p.access===null||validAccess(p.access),'Invalid access',400);check(u.admin||!(person.roles||[]).includes('Director')||p.access!==null,'Managers cannot remove Director access');delete access.members[person.email];if(p.access===null)delete access.members[person.id];else access.members[person.id]=p.access;}
   b.version++;audit(s,u,b.id,b.id,'Notice Group access updated',null,{group:p.group});return;
  }
+ if(p.op==='memberGroup.save'){
+  check(u.admin,'Only System Administrators can manage Member Groups',403);s.memberGroups??=[];
+  const name=typeof p.name==='string'?p.name.trim():'';check(name&&name.length<=100,'Enter a Member Group name',400);
+  check(!s.memberGroups.some(g=>g.id!==p.id&&g.name.toLowerCase()===name.toLowerCase()),'Member Group name already exists',400);
+  check(Array.isArray(p.managers)&&p.managers.every((id:any)=>s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('Member Group Manager'))),'Choose people with the Member Group Manager role',400);
+  const g=p.id?find(s,'memberGroups',p.id):{id:uid(),version:0};if(p.id)check(g.version===p.version,'Member Group changed. Refresh and retry.',409);
+  Object.assign(g,{name,managers:[...new Set(p.managers)],version:g.version+1});if(!p.id)s.memberGroups.push(g);audit(s,u,'',g.id,'Member Group saved',null,name);return;
+ }
  if(p.op==='branch.delete'){
   check(u.admin);const branch=find(s,'branches',p.id);check(p.version===branch.version,'Branch changed. Refresh and retry.',409);
   s.branchDeletions??=[];s.branchDeletions.push({...branch,deletedAt:now()});s.branches=s.branches.filter(b=>b.id!==branch.id);
   audit(s,u,'',branch.id,'Branch deleted',branch,null);return;
  }
  if(p.op==='branch.save'){
-  const managed=p.id?s.branches.find(b=>b.id===p.id):null;check(u.admin||u.active&&!u.deleted&&!u.onboarding&&managed?.manager===u.id,'Only the appointed Branch Manager or System Administrator can change branch assignments',403);
-  if(!u.admin)check(p.name===managed!.name&&p.abbreviation===managed!.abbreviation&&p.manager===managed!.manager,'Only System Administrators can change branch details or appoint the Branch Manager',403);
+  const managed=p.id?s.branches.find(b=>b.id===p.id):null;check(u.admin||managed&&managesBranch(s,u,managed),'Only the appointed Branch Manager, Member Group Manager or System Administrator can change branch assignments',403);
+  if(!u.admin)check(p.name===managed!.name&&p.abbreviation===managed!.abbreviation&&(managesGroup(s,u,managed!.memberGroupId)||p.manager===managed!.manager),'Only System Administrators can change branch details or appoint the Branch Manager',403);
   const name=typeof p.name==='string'?p.name.trim():'',abbreviation=typeof p.abbreviation==='string'?p.abbreviation.trim():'';
   check(name&&name.length<=100&&abbreviation&&abbreviation.length<=20,'Enter a branch name and abbreviation',400);
   check(!s.branches.some(b=>b.id!==p.id&&(b.name.toLowerCase()===name.toLowerCase()||b.abbreviation.toLowerCase()===abbreviation.toLowerCase())),'Branch name and abbreviation must be unique',400);
@@ -69,7 +82,12 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const crm=p.crm===undefined?(old?.crm||''):p.crm,cres=p.cres===undefined?(old?.cres||[]):p.cres;
   check(typeof crm==='string'&&(!crm||s.users.some(x=>x.id===crm&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select a CRM with the Customer Relationship role',400);
   check(Array.isArray(cres)&&cres.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select members with the Customer Relationship role',400);
-  const branch=old||{id:uid(),version:0};Object.assign(branch,{name,abbreviation,manager:p.manager,manager2,crm,cres:[...new Set(cres)],version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
+  const people=p.people===undefined?(old?.people||[]):p.people;check(Array.isArray(people)&&people.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted)),'Choose active or invited branch staff',400);
+  const memberGroupId=p.memberGroupId===undefined?(old?.memberGroupId||''):p.memberGroupId;
+  check(typeof memberGroupId==='string'&&(!memberGroupId||(s.memberGroups||[]).some(g=>g.id===memberGroupId)),'Choose a valid Member Group',400);
+  check(u.admin||memberGroupId===(old?.memberGroupId||''),'Only System Administrators can move branches between groups',403);
+  if(!u.admin&&memberGroupId)check([p.manager,manager2,crm,...cres,...people].filter(Boolean).every(id=>s.users.some(x=>x.id===id&&x.memberGroupId===memberGroupId)),'Choose staff belonging to this Member Group',403);
+  const branch=old||{id:uid(),version:0};Object.assign(branch,{people:[...new Set(people)],memberGroupId,name,abbreviation,manager:p.manager,manager2,crm,cres:[...new Set(cres)],version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
  }
  if(p.board===learningBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Learning is automatically available to all active staff',400);
  if(p.board===noticeBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Manage member access within a Notice Group',400);
@@ -116,12 +134,14 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const board=find(s,'boards',p.board);p={...p,hidden:[...(board.hidden||[]),...p.columns.filter((c:Row)=>!board.columns.some((old:Row)=>old.id===c.id)).map((c:Row)=>c.id)]};
  }
  if(p.op==='person.edit'){
-  check(u.admin);check(['users','invites'].includes(p.kind),'Invalid person type',400);
-  const person=find(s,p.kind,p.id);check(!person.deleted,'User has been deleted',400);
+  check(['users','invites'].includes(p.kind),'Invalid person type',400);
+  const person=find(s,p.kind,p.id);check(u.admin||scopedPerson(s,u,person),'Access denied. You can edit only staff in your Member Group',403);check(!person.deleted,'User has been deleted',400);
   if(p.roles!==undefined)check(Array.isArray(p.roles)&&p.roles.every((r:string)=>businessRoles.includes(r)),'Invalid roles',400);
   const name=typeof p.name==='string'?p.name.trim():'',mobile=typeof p.mobile==='string'?p.mobile.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);check(mobile.length<=40,'Mobile number is too long',400);
-  if(p.roles!==undefined){for(const target of s.users.filter(x=>x.email===person.email))appointSystemAdministrator(target,p.roles);for(const invite of s.invites.filter(x=>x.email===person.email))invite.systemAdministrator=p.roles.includes('System Administrator');}
+  if(!u.admin&&p.roles!==undefined)check(p.roles.every((r:string)=>groupStaffRoles.includes(r)),'Group managers can assign only branch staff roles',403);
+  if(p.memberGroupId!==undefined){check(u.admin||p.memberGroupId===person.memberGroupId,'Only System Administrators can move users between groups',403);check(typeof p.memberGroupId==='string'&&(!p.memberGroupId||(s.memberGroups||[]).some(g=>g.id===p.memberGroupId)),'Choose a valid Member Group',400);for(const row of [...s.users,...s.invites].filter(x=>x.email===person.email))row.memberGroupId=p.memberGroupId;}
+  if(u.admin&&p.roles!==undefined){for(const target of s.users.filter(x=>x.email===person.email))appointSystemAdministrator(target,p.roles);for(const invite of s.invites.filter(x=>x.email===person.email))invite.systemAdministrator=p.roles.includes('System Administrator');}
   for(const row of [...s.users,...s.invites].filter(x=>x.email===person.email)){row.name=name;row.mobile=mobile;if(p.roles!==undefined)row.roles=[...new Set(p.roles)];if(p.abbreviation!==undefined){check(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12,'Abbr Name must be up to 12 characters',400);row.abbreviation=p.abbreviation.trim();}}
   audit(s,u,'',person.id,'Person details updated',null,null);return;
  }
@@ -140,17 +160,20 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  }
  if(p.op==='user')check(!find(s,'users',p.id).deleted,'User has been deleted',400);
  if(p.op==='company.invite'){
-  check(u.admin);const email=emailOf(p.email),name=typeof p.name==='string'?p.name.trim():'';
+  check(u.admin||managesGroup(s,u,p.memberGroupId),'Access denied. Choose a Member Group you manage',403);const email=emailOf(p.email),name=typeof p.name==='string'?p.name.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);
   check(p.roles===undefined||Array.isArray(p.roles)&&p.roles.every((r:string)=>businessRoles.includes(r)),'Invalid roles',400);
+  check(p.memberGroupId===undefined||typeof p.memberGroupId==='string'&&(!p.memberGroupId||(s.memberGroups||[]).some(g=>g.id===p.memberGroupId)),'Choose a valid Member Group',400);
+  if(!u.admin)check((p.roles||[]).every((r:string)=>groupStaffRoles.includes(r)),'Group managers can assign only branch staff roles',403);
   const mobile=typeof p.mobile==='string'?p.mobile.trim():'';check(mobile.length<=40,'Mobile number is too long',400);
   check(!s.users.some(x=>x.email===email&&(!x.onboarding||!x.active||x.deleted)),'This person already has an account. Add them from Board Members.',400);
+  if(!u.admin)check(!s.users.some(x=>x.email===email&&x.memberGroupId!==p.memberGroupId),'This email is already registered outside your Member Group',403);
   check(!pending(s,email),'This person already has an invitation. Use Resend in Administration.',400);
   check(p.abbreviation===undefined||(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12),'Abbr Name must be up to 12 characters',400);const i={id:uid(),email,name,mobile,roles:p.roles||[],abbreviation:p.abbreviation?.trim()||'',token:uid()+uid(),expires:new Date(Date.now()+7*86400000).toISOString(),state:'pending',delivery:'queued',inviter:u.id,at:now()};
-  Object.assign(i,{systemAdministrator:(p.roles||[]).includes('System Administrator')});s.invites.push(i);audit(s,u,'',i.id,'Company invitation created',null,email);return i;
+  Object.assign(i,{memberGroupId:p.memberGroupId||'',systemAdministrator:(p.roles||[]).includes('System Administrator')});s.invites.push(i);audit(s,u,'',i.id,'Company invitation created',null,email);return i;
  }
  if(p.op==='invite.update'){
-  check(u.admin);const i=find(s,'invites',p.id);check(i.state!=='accepted','Invitation already accepted',400);
+  const i=find(s,'invites',p.id);check(u.admin||scopedPerson(s,u,i),'You can resend only invitations in your Member Group',403);check(i.state!=='accepted','Invitation already accepted',400);
   if(p.cancel){i.state='cancelled';s.members=s.members.filter(m=>m.pendingEmail!==i.email);}
   else{check(!s.users.some(x=>x.email===i.email&&x.active&&!x.onboarding),'This person already has an account',400);i.state='pending';i.token=uid()+uid();i.expires=new Date(Date.now()+7*86400000).toISOString();i.delivery='queued';}
   return i;
@@ -159,7 +182,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  if(p.op==='invite.accept'){
   const i=s.invites.find(i=>i.token===p.token);check(i&&i.email===u.email&&i.state==='pending'&&i.expires>now(),'Invitation unavailable or email does not match',403);
   if(i.board){const board=legacyMutate(s,u,p);u.onboarding=false;activateAssignments(s,u);return board;}
-  i.state='accepted';u.onboarding=false;if(i.systemAdministrator===true)u.admin=true;u.name=i.name||u.name;u.mobile=i.mobile||'';if(i.roles)u.roles=i.roles;if(i.abbreviation)u.abbreviation=i.abbreviation;activateAssignments(s,u);audit(s,u,'',i.id,'Company invitation accepted',null,u.email);
+  i.state='accepted';u.memberGroupId=i.memberGroupId||u.memberGroupId||'';u.onboarding=false;if(i.systemAdministrator===true)u.admin=true;u.name=i.name||u.name;u.mobile=i.mobile||'';if(i.roles)u.roles=i.roles;if(i.abbreviation)u.abbreviation=i.abbreviation;activateAssignments(s,u);audit(s,u,'',i.id,'Company invitation accepted',null,u.email);
   return s.members.find(m=>m.user===u.id&&!find(s,'boards',m.board).archived)?.board||'';
  }
  if(p.op==='member'){
