@@ -471,7 +471,7 @@ test('branch staffing persists CRM and multiple CREs with validation and stale e
 });
 
 import {syncAdministrationBranches} from '../lib/administration-branch-sync';
-test('scheduling branch import is repeatable and preserves assignments',()=>{const {s}=setup();s.branches=[];assert.equal(syncAdministrationBranches(s),true);assert.equal(s.branches.length,16);const b=s.branches.find(b=>b.name==='Bedok Mall')!;assert.equal(b.abbreviation,'BM');b.manager='existing';assert.equal(syncAdministrationBranches(s),false);assert.equal(b.manager,'existing');});
+test('scheduling branch import is repeatable and preserves assignments',()=>{const {s}=setup();s.branches=[];assert.equal(syncAdministrationBranches(s),true);assert.equal(s.branches.length,17);assert.equal(s.branches.find(b=>b.scheduleId==='US')?.name,'Novena');assert.equal(s.branches.find(b=>b.scheduleId==='TH')?.name,'Thomson');const b=s.branches.find(b=>b.name==='Bedok Mall')!;assert.equal(b.abbreviation,'BM');b.manager='existing';assert.equal(syncAdministrationBranches(s),false);assert.equal(b.manager,'existing');});
 
 test('branch staffing enforces Business Manager and CRE roles',()=>{const {s,admin,viewer}=setup();view(s,admin);const p={op:'branch.save',name:'Role test',abbreviation:'RT',manager:viewer.id};viewer.roles=[];assert.throws(()=>mutate(s,admin,p),/Business Manager/);viewer.roles=['Business Manager'];assert.throws(()=>mutate(s,admin,{...p,crm:viewer.id}),/Customer Relationship/);assert.throws(()=>mutate(s,admin,{...p,cres:[viewer.id]}),/Customer Relationship/);viewer.roles.push('Customer Relationship');mutate(s,admin,{...p,crm:viewer.id,cres:[viewer.id]});});
 

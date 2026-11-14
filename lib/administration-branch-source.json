@@ -11,8 +11,8 @@
   },
   {
     "scheduleId": "US",
-    "name": "Novena Thomson",
-    "abbreviation": "NT"
+    "name": "Novena",
+    "abbreviation": "N"
   },
   {
     "scheduleId": "RM",
@@ -78,5 +78,10 @@
     "scheduleId": "LIVE",
     "name": "C. Live Tutorial",
     "abbreviation": "CLT"
+  },
+  {
+    "scheduleId": "TH",
+    "name": "Thomson",
+    "abbreviation": "T"
   }
 ]

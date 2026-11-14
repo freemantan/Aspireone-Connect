@@ -25,15 +25,9 @@ CONFIG={
  'US':('2027 Term Schedule (US) - T1 2027.xlsx',['MP','UP','LS','US','JC','CL']),
  'WL':('2027 Term Schedule (WL) - Master.xlsx',['2027 - EMS Lower Pri','2027 - EMS Middle Pri','2027 - EMS Upper Pri','2027 - EMS Lower Sec','2027 - EMS Upper Sec','2027 - Y3Y4','2027 - JC','2027 Template - CL']),
  'WM':('2027 Term Schedule (WM) - Master.xlsx',['MP','UP','LS','US','IP','JC','2027 Template - CL'])}
-BRANCHES=[('AV','Alexandra Village','Central'),('RM','Rochester Mall','Central'),('BT','Bukit Timah','Central'),('US','Novena Thomson','Central'),('PLQ','Paya Lebar Quarter','East'),('BM','Bedok Mall','East'),('PW','Parkway Parade','East'),('JP','Jurong Point','West'),('WM','West Mall','West'),('HM','Hillion Mall','West'),('NEX','Nex','North East'),('WL','Woodleigh Mall','North East'),('SM','Seletar Mall','North East'),('KV','Kovan','North East'),('LM','Lentor Modern','North')]
+BRANCHES=[('AV','Alexandra Village','Central'),('RM','Rochester Mall','Central'),('BT','Bukit Timah','Central'),('US','Novena','Central'),('TH','Thomson','Central'),('PLQ','Paya Lebar Quarter','East'),('BM','Bedok Mall','East'),('PW','Parkway Parade','East'),('JP','Jurong Point','West'),('WM','West Mall','West'),('HM','Hillion Mall','West'),('NEX','Nex','North East'),('WL','Woodleigh Mall','North East'),('SM','Seletar Mall','North East'),('KV','Kovan','North East'),('LM','Lentor Modern','North')]
 NOVENA_MIGRATION="""
-update ao_schedule_branches set name='Novena Thomson',zone_id='central' where id='US';
-update ao_schedule_issues set resolved=1 where (branch_id='US' and code='zone_unassigned') or (branch_id='NT' and code in ('schedule_not_supplied','missing_contact','missing_qr_destination'));
-update ao_schedule_sources set branch_id='US' where branch_id='NT';
-update ao_schedule_sessions set branch_id='US' where branch_id='NT';
-update ao_schedule_calendar_notes set branch_id='US' where branch_id='NT';
-update ao_schedule_issues set branch_id='US' where branch_id='NT';
-delete from ao_schedule_branches where id='NT';
+update ao_schedule_branches set name='Novena',zone_id='central' where id='US';
 """
 def jid(*v): return hashlib.sha256('|'.join(map(str,v)).encode()).hexdigest()[:32]
 def js(v): return json.dumps(v,ensure_ascii=False,default=str,separators=(',',':'))

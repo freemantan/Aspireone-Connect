@@ -20,6 +20,7 @@ export function syncAdministrationBranches(s:State){
  for(const item of source){
   if((s.branchDeletions||[]).some(b=>b.scheduleId===item.scheduleId||b.id==='schedule-'+item.scheduleId||b.name?.trim().toLowerCase()===item.name.toLowerCase()))continue;
   const existing=s.branches.find(b=>b.scheduleId===item.scheduleId||b.name.trim().toLowerCase()===item.name.toLowerCase()||b.id==='schedule-'+item.scheduleId);
+  if(existing&&item.scheduleId==='US'&&existing.name==='Novena Thomson'){existing.name='Novena';existing.abbreviation='N';existing.version=(existing.version||0)+1;changed=true;}
   if(existing){if(!existing.scheduleId){existing.scheduleId=item.scheduleId;changed=true;}continue;}
   let abbreviation=item.abbreviation,n=2;
   while(s.branches.some(b=>b.abbreviation?.toLowerCase()===abbreviation.toLowerCase()))abbreviation=item.abbreviation+n++;
