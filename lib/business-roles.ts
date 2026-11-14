@@ -1,7 +1,7 @@
 import {initialiseLearning} from './learning';
 import {initialiseNoticeBoard} from './notice-board';
 import type {State,Row} from './model';
-export const businessRoles=['Business Manager','Subject Head','Customer Relationship','Marketing','HR','Technology','Finance','Online Business','AHCI','Manager','Senior Manager','Franchisee','Director','Shareholder','System Administrator'];
+export const businessRoles=['Business Manager','Subject Head','Coach','Customer Relationship','Marketing','HR','Technology','Finance','Online Business','AHCI','Manager','Senior Manager','Franchisee','Director','Shareholder','System Administrator'];
 export const roleLabel=(role:string)=>role==='HR'?'Human Resource':role;
 export const roleLabels=(roles:string[])=>businessRoles.filter(role=>roles.includes(role)).map(roleLabel).join(', ');
 import {accessLevel} from './access';
