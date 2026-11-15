@@ -1,10 +1,11 @@
 'use client';
 import {accessOptions,accessLabel,accessName} from '@/lib/access';
 
-import {AdministrationMemberGroups,MemberGroupSelect,GroupPeople} from './administration-member-groups';
+import {AdministrationMemberGroups,MemberGroupChecks,GroupPeople} from './administration-member-groups';
 import {AdministrationBranches} from './administration-branches';
 import {BoardRoleAccess,RoleChecks} from './article-board';
 import {useId,useState} from 'react';
+import {personGroupIds} from '@/lib/member-groups';
 import {businessRoles,roleLabel,roleLabels} from '@/lib/business-roles';
 import {ChevronDown,ChevronRight} from 'lucide-react';
 function PeopleSection({title,count,children}:{title:string;count?:number;children:React.ReactNode}){
@@ -12,15 +13,15 @@ function PeopleSection({title,count,children}:{title:string;count?:number;childr
  return <section className="people-section"><button type="button" className="people-section-toggle" aria-expanded={open} aria-controls={id} onClick={()=>setOpen(!open)}>{open?<ChevronDown size={16}/>:<ChevronRight size={16}/>}<span>{title}</span>{count!==undefined&&<span className="count">{count}</span>}</button><div id={id} hidden={!open} className="people-section-content">{open&&children}</div></section>;
 }
 function PersonEditor({person,kind,run,busy,groups}:any){
- const [memberGroupId,setMemberGroupId]=useState(person.memberGroupId||'');
+ const [memberGroupIds,setMemberGroupIds]=useState<string[]>(personGroupIds(person));
  const [roles,setRoles]=useState<string[]>(person.roles||[]),[editing,setEditing]=useState(false),[name,setName]=useState(person.name||''),[mobile,setMobile]=useState(person.mobile||''),[abbreviation,setAbbreviation]=useState(person.abbreviation||'');
- if(!editing)return <button disabled={busy} onClick={()=>{setMemberGroupId(person.memberGroupId||'');setRoles(person.roles||[]);setName(person.name||'');setMobile(person.mobile||'');setAbbreviation(person.abbreviation||'');setEditing(true);}}>Edit details</button>;
- return <form className="detail-body" onSubmit={async e=>{e.preventDefault();if(await run({op:'person.edit',kind,id:person.id,name,mobile,abbreviation,roles,memberGroupId}))setEditing(false);}}><MemberGroupSelect groups={groups} value={memberGroupId} onChange={setMemberGroupId}/><label>Person Name<input required maxLength={150} value={name} onChange={e=>setName(e.target.value)}/></label><label>Abbr Name<input maxLength={12} value={abbreviation} onChange={e=>setAbbreviation(e.target.value)}/></label><label>Mobile number (optional)<input type="tel" maxLength={40} value={mobile} onChange={e=>setMobile(e.target.value)}/></label><h3>Roles</h3><RoleChecks value={roles} onChange={setRoles}/><button className="primary" disabled={busy}>Save details</button><button type="button" disabled={busy} onClick={()=>setEditing(false)}>Cancel</button></form>;
+ if(!editing)return <button disabled={busy} onClick={()=>{setMemberGroupIds(personGroupIds(person));setRoles(person.roles||[]);setName(person.name||'');setMobile(person.mobile||'');setAbbreviation(person.abbreviation||'');setEditing(true);}}>Edit details</button>;
+ return <form className="detail-body" onSubmit={async e=>{e.preventDefault();if(await run({op:'person.edit',kind,id:person.id,name,mobile,abbreviation,roles,memberGroupIds}))setEditing(false);}}><MemberGroupChecks groups={groups} value={memberGroupIds} onChange={setMemberGroupIds}/><label>Person Name<input required maxLength={150} value={name} onChange={e=>setName(e.target.value)}/></label><label>Abbr Name<input maxLength={12} value={abbreviation} onChange={e=>setAbbreviation(e.target.value)}/></label><label>Mobile number (optional)<input type="tel" maxLength={40} value={mobile} onChange={e=>setMobile(e.target.value)}/></label><h3>Roles</h3><RoleChecks value={roles} onChange={setRoles}/><button className="primary" disabled={busy}>Save details</button><button type="button" disabled={busy} onClick={()=>setEditing(false)}>Cancel</button></form>;
 }
 export function AdministrationPeople({s,act}:any){
  const [tab,setTab]=useState<'users'|'groups'|'branches'>('users');
  const [roles,setRoles]=useState<string[]>([]),[name,setName]=useState(''),[email,setEmail]=useState(''),[mobile,setMobile]=useState(''),[abbreviation,setAbbreviation]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const [memberGroupId,setMemberGroupId]=useState('');
+ const [memberGroupIds,setMemberGroupIds]=useState<string[]>([]);
  const [resending,setResending]=useState('');
  const run=async(p:any)=>{setBusy(true);setMessage('');try{await act(p);return true;}catch(e:any){setMessage(e.message||'The action failed. Please retry.');return false;}finally{setBusy(false);}};
  const resend=async(i:any)=>{setResending(i.id);setMessage('Resending invitation to '+i.email+'…');setBusy(true);try{await act({op:'invite.update',id:i.id});setMessage('Invitation resent to '+i.email+'. The email service accepted it for sending.');}catch(e:any){setMessage('Could not resend invitation to '+i.email+'. '+(e.message||'Please retry.'));}finally{setResending('');setBusy(false);}};
@@ -38,8 +39,8 @@ export function AdministrationPeople({s,act}:any){
  if(!s.me.admin&&!s.managedGroupIds?.length)return <div className="administration-container"><AdministrationBranches s={{...s,users:s.branchPeople||s.users,branches:s.branches.filter((b:any)=>b.manager===s.me.id)}} act={act}/></div>;
  if(!s.me.admin)return <div className="administration-container"><div role="tablist" aria-label="Administration" className="editor-actions">{[['users','Users'],['groups','Member Groups'],['branches','Branches']].map(([id,label])=><button key={id} role="tab" aria-selected={tab===id} onClick={()=>setTab(id as any)}>{label}</button>)}</div>{tab==='users'&&<GroupPeople s={s} act={act}/>} {tab==='groups'&&<AdministrationMemberGroups s={s} act={act}/>} {tab==='branches'&&<AdministrationBranches s={{...s,users:s.branchPeople||[],branches:s.branches.filter((b:any)=>s.managedGroupIds.includes(b.memberGroupId)||b.manager===s.me.id)}} act={act}/>}</div>;
  return <div className="administration-container"><div role="tablist" aria-label="Administration" className="editor-actions"><button role="tab" aria-selected={tab==='users'} disabled={busy} onClick={()=>setTab('users')}>Users</button><button role="tab" aria-selected={tab==='groups'} disabled={busy} onClick={()=>setTab('groups')}>Member Groups</button><button role="tab" aria-selected={tab==='branches'} disabled={busy} onClick={()=>setTab('branches')}>Branches</button></div><div hidden={tab!=='groups'}><AdministrationMemberGroups s={s} act={act}/></div><div hidden={tab!=='branches'}><AdministrationBranches s={s} act={act}/></div><div hidden={tab!=='users'} className="panel"><p><strong>Current System Administrators:</strong> {s.users.filter((u:any)=>u.admin&&u.active&&!u.deleted).map((u:any)=>u.name+' ('+u.email+')').join(', ')||'None'}</p><h2>People and invitations</h2><p>Invite each person once. Add them to boards separately, before or after they accept.</p>
- <form className="detail-body" onSubmit={async e=>{e.preventDefault();if(await run({op:'company.invite',name,email,mobile,abbreviation,roles,memberGroupId})){setRoles([]);setName('');setEmail('');setMobile('');setAbbreviation('');setMessage('Invitation sent: the email service accepted it for sending. You can now add this person to boards.');}}}>
- <MemberGroupSelect groups={s.memberGroups} value={memberGroupId} onChange={setMemberGroupId}/><label>Person Name<input required maxLength={150} value={name} onChange={e=>setName(e.target.value)}/></label>
+ <form className="detail-body" onSubmit={async e=>{e.preventDefault();if(await run({op:'company.invite',name,email,mobile,abbreviation,roles,memberGroupIds})){setRoles([]);setName('');setEmail('');setMobile('');setAbbreviation('');setMessage('Invitation sent: the email service accepted it for sending. You can now add this person to boards.');}}}>
+ <MemberGroupChecks groups={s.memberGroups} value={memberGroupIds} onChange={setMemberGroupIds}/><label>Person Name<input required maxLength={150} value={name} onChange={e=>setName(e.target.value)}/></label>
  <label>Email address<input required type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label>
  <label>Abbr Name<input maxLength={12} value={abbreviation} onChange={e=>setAbbreviation(e.target.value)}/></label><label>Mobile number (optional)<input type="tel" maxLength={40} value={mobile} onChange={e=>setMobile(e.target.value)}/></label>
  <h3>Roles</h3><RoleChecks value={roles} onChange={setRoles}/><button className="primary" disabled={busy}>Send invitation</button><p role="status">{message}</p></form>

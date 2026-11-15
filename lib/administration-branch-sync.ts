@@ -1,7 +1,9 @@
+import {personGroupIds} from './member-groups';
 import source from './administration-branch-source.json';
 import type {State} from './model';
 export function syncAdministrationBranches(s:State){
  s.branches??=[];let changed=false;
+ for(const p of [...s.users,...s.invites])if(!Array.isArray(p.memberGroupIds)){p.memberGroupIds=personGroupIds(p);changed=true;}
  // CRE was briefly introduced as a separate role; preserve access under its canonical name.
  function migrate(value:any):void{
   if(!value||typeof value!=='object')return;

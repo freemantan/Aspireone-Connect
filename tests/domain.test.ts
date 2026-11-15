@@ -514,7 +514,7 @@ import {managedGroupIds,managesGroup,managesBranch} from '../lib/member-groups';
 test('member group management requires explicit assignment and does not cross branch boundaries',()=>{
  const {s,admin,viewer,editor}=setup();syncAdministrationBranches(s);viewer.roles=['Member Group Manager'];editor.roles=['Coach'];
  mutate(s,admin,{op:'memberGroup.save',name:'Group One',managers:[viewer.id]});mutate(s,admin,{op:'memberGroup.save',name:'Group Two',managers:[]});
- const [one,two]=s.memberGroups;const a=s.branches[0],b=s.branches[1];a.memberGroupId=one.id;b.memberGroupId=two.id;editor.memberGroupId=one.id;
+ const [one,two]=s.memberGroups;const a=s.branches[0],b=s.branches[1];a.memberGroupId=one.id;b.memberGroupId=two.id;editor.memberGroupIds=[one.id];
  assert.deepEqual(managedGroupIds(s,viewer),[one.id]);assert(managesBranch(s,viewer,a));assert(!managesBranch(s,viewer,b));
  assert.throws(()=>mutate(s,viewer,{op:'memberGroup.save',name:'Other',managers:[viewer.id]}));
  mutate(s,viewer,{op:'branch.save',...a,people:[editor.id]});assert(a.people.includes(editor.id));
@@ -541,4 +541,19 @@ test('branch coaches are validated and appointed staff are excluded from additio
  assert.deepEqual(b.coaches,[viewer.id]);assert.deepEqual(b.people,[admin.id]);
  assert.throws(()=>mutate(s,admin,{op:'branch.save',...b,coaches:[admin.id]}),/Coach role/);
  delete b.coaches;b.people=[viewer.id,editor.id,admin.id];syncAdministrationBranches(s);assert.deepEqual(b.coaches,[viewer.id]);assert.deepEqual(b.people,[admin.id]);assert.equal(syncAdministrationBranches(s),false);
+});
+
+test('users and pending invitees can belong to multiple groups and branch validation applies to admins too',()=>{
+ const {s,admin,viewer}=setup();syncAdministrationBranches(s);viewer.roles=['Member Group Manager'];
+ mutate(s,admin,{op:'memberGroup.save',name:'Multi One',managers:[viewer.id]});mutate(s,admin,{op:'memberGroup.save',name:'Multi Two',managers:[]});mutate(s,admin,{op:'memberGroup.save',name:'Multi Three',managers:[]});const [one,two,three]=s.memberGroups;
+ const i=mutate(s,admin,{op:'company.invite',name:'Shared Coach',email:'sharedcoach@example.com',roles:['Coach'],memberGroupIds:[one.id,two.id]});provisionInvitedPeople(s);const p=s.users.find(u=>u.email===i.email)!;assert.deepEqual(p.memberGroupIds,[one.id,two.id]);assert.equal(p.onboarding,true);
+ for(const [b,g] of [[s.branches[0],one],[s.branches[1],two]]){b.memberGroupId=g.id;mutate(s,admin,{op:'branch.save',...b,coaches:[p.id]});assert.deepEqual(b.coaches,[p.id]);}
+ s.branches[2].memberGroupId=three.id;assert.throws(()=>mutate(s,admin,{op:'branch.save',...s.branches[2],coaches:[p.id]}),/this Member Group/);
+ assert(view(s,viewer).branchPeople.some((x:any)=>x.id===p.id&&x.onboarding&&x.memberGroupIds.includes(two.id)));
+ assert.throws(()=>mutate(s,viewer,{op:'person.edit',kind:'users',id:p.id,name:p.name,mobile:'',memberGroupIds:[one.id]}),/System Administrators/);
+ mutate(s,admin,{op:'person.edit',kind:'users',id:p.id,name:p.name,mobile:'',memberGroupIds:[one.id,two.id,three.id]});assert.deepEqual(i.memberGroupIds,[one.id,two.id,three.id]);provisionInvitedPeople(s);assert.deepEqual(p.memberGroupIds,[one.id,two.id,three.id]);
+ mutate(s,p,{op:'invite.accept',token:i.token});assert.deepEqual(p.memberGroupIds,[one.id,two.id,three.id]);assert.equal(p.onboarding,false);
+});
+test('legacy single group is retained during migration and array membership remains authoritative',()=>{
+ const {s,viewer}=setup();viewer.memberGroupId='existing-group';delete viewer.memberGroupIds;syncAdministrationBranches(s);assert.deepEqual(viewer.memberGroupIds,['existing-group']);viewer.memberGroupIds=[];syncAdministrationBranches(s);assert.deepEqual(viewer.memberGroupIds,[]);
 });

@@ -1,3 +1,4 @@
+import {personGroupIds} from './member-groups';
 import {State,uid} from './model';
 
 // Board membership can be prepared before email delivery reporting catches up.
@@ -9,12 +10,12 @@ export function provisionInvitedPeople(s:State){
   let person=s.users.find(u=>u.email===invite.email);
   if(!person){
    const name=invite.name||invite.email;
-   person={id:uid(),email:invite.email,name,mobile:invite.mobile||'',abbreviation:invite.abbreviation||name.split(' ').map((x:string)=>x[0]).join('').slice(0,4),memberGroupId:invite.memberGroupId||'',roles:invite.roles||[],active:true,admin:false,onboarding:true};
+   person={id:uid(),email:invite.email,name,mobile:invite.mobile||'',abbreviation:invite.abbreviation||name.split(' ').map((x:string)=>x[0]).join('').slice(0,4),memberGroupIds:personGroupIds(invite),memberGroupId:personGroupIds(invite)[0]||'',roles:invite.roles||[],active:true,admin:false,onboarding:true};
    s.users.push(person);changed=true;
   }
   if(!person.active||person.deleted)continue;
   if(person.onboarding){
-   for(const key of ['name','mobile','abbreviation','roles','memberGroupId'])if(invite[key]!==undefined&&JSON.stringify(person[key])!==JSON.stringify(invite[key])){person[key]=Array.isArray(invite[key])?[...invite[key]]:invite[key];changed=true;}
+   for(const key of ['name','mobile','abbreviation','roles','memberGroupId','memberGroupIds'])if(invite[key]!==undefined&&JSON.stringify(person[key])!==JSON.stringify(invite[key])){person[key]=Array.isArray(invite[key])?[...invite[key]]:invite[key];changed=true;}
   }
   for(const membership of s.members.filter(m=>m.pendingEmail===invite.email))if(membership.user!==person.id){membership.user=person.id;changed=true;}
  }
