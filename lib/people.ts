@@ -141,8 +141,9 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const name=typeof p.name==='string'?p.name.trim():'',mobile=typeof p.mobile==='string'?p.mobile.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);check(mobile.length<=40,'Mobile number is too long',400);
   if(!u.admin&&p.roles!==undefined)check(p.roles.every((r:string)=>groupStaffRoles.includes(r)),'Group managers can assign only branch staff roles',403);
+  check((p.memberGroupIds??(p.memberGroupId!==undefined?(p.memberGroupId?[p.memberGroupId]:[]):personGroupIds(person))).length>0,'Select at least one Member Group',400);
   if(p.memberGroupIds!==undefined||p.memberGroupId!==undefined){
-   const ids=p.memberGroupIds??(p.memberGroupId?[p.memberGroupId]:[]);check(Array.isArray(ids)&&ids.every((id:any)=>typeof id==='string'&&(s.memberGroups||[]).some(g=>g.id===id)),'Choose valid Member Groups',400);
+   const ids=p.memberGroupIds??(p.memberGroupId?[p.memberGroupId]:[]);check(Array.isArray(ids)&&ids.length>0&&ids.every((id:any)=>typeof id==='string'&&(s.memberGroups||[]).some(g=>g.id===id)),'Choose valid Member Groups',400);
    check(u.admin||JSON.stringify([...new Set(ids)].sort())===JSON.stringify(personGroupIds(person).sort()),'Only System Administrators can change user Member Groups',403);
    for(const row of [...s.users,...s.invites].filter(x=>x.email===person.email)){row.memberGroupIds=[...new Set(ids)];row.memberGroupId=row.memberGroupIds[0]||'';}
   }
@@ -165,7 +166,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  }
  if(p.op==='user')check(!find(s,'users',p.id).deleted,'User has been deleted',400);
  if(p.op==='company.invite'){
-  const memberGroupIds=p.memberGroupIds??(p.memberGroupId?[p.memberGroupId]:[]);check(Array.isArray(memberGroupIds)&&memberGroupIds.every((id:any)=>typeof id==='string'&&(s.memberGroups||[]).some(g=>g.id===id)),'Choose valid Member Groups',400);
+  const memberGroupIds=p.memberGroupIds??(p.memberGroupId?[p.memberGroupId]:[]);check(Array.isArray(memberGroupIds)&&memberGroupIds.length>0&&memberGroupIds.every((id:any)=>typeof id==='string'&&(s.memberGroups||[]).some(g=>g.id===id)),'Choose valid Member Groups',400);
   check(u.admin||memberGroupIds.length>0&&memberGroupIds.every((id:string)=>managesGroup(s,u,id)),'Access denied. Choose Member Groups you manage',403);const email=emailOf(p.email),name=typeof p.name==='string'?p.name.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);
   check(p.roles===undefined||Array.isArray(p.roles)&&p.roles.every((r:string)=>businessRoles.includes(r)),'Invalid roles',400);

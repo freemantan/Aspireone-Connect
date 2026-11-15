@@ -4,7 +4,7 @@ import {columnOrder,moveColumn} from '../lib/column-order';
 import {taskEmail} from '../lib/task-email';
 
 import assert from 'node:assert/strict';
-import {initial,mutate,role,view,runRecurrences,completed,overdue,archived,today,addDays,State} from '../lib/model';
+import {initial,mutate as mutateDomain,role,view,runRecurrences,completed,overdue,archived,today,addDays,State} from '../lib/model';
 import {demo} from '../lib/demo';
 import {updateBoardNames,updateCommonColumns} from '../lib/workspace-updates';
 import {columnPreferences,standardColumns} from '../lib/column-preferences';
@@ -14,6 +14,15 @@ test('MP4 attachment validation accepts a file-type box and rejects renamed or t
  const bytes=new Uint8Array([0,0,0,24,102,116,121,112,105,115,111,109,0,0,0,0,105,115,111,109,109,112,52,50]);
  assert.equal(isMp4(bytes),true);assert.equal(isMp4(bytes.slice(0,12)),false);assert.equal(isMp4(new TextEncoder().encode('not really an MP4 video')),false);const invalid=bytes.slice();invalid[3]=99;assert.equal(isMp4(invalid),false);
 });
+function mutate(s:State,u:any,p:any):any{
+ // Existing scenarios use an assigned group; explicit empty selections are tested separately.
+ if(['company.invite','person.edit'].includes(p.op)&&p.memberGroupIds===undefined&&p.memberGroupId===undefined){
+  const person=p.op==='person.edit'?s[p.kind]?.find(x=>x.id===p.id):null;
+  const ids=person?.memberGroupIds|| (person?.memberGroupId?[person.memberGroupId]:[]);
+  if(!ids.length){s.memberGroups??=[];if(!s.memberGroups.some(g=>g.id==='fixture-member-group'))s.memberGroups.push({id:'fixture-member-group',name:'Fixture Group',managers:[],version:1});p={...p,memberGroupIds:['fixture-member-group']};}
+ }
+ return mutateDomain(s,u,p);
+}
 function setup(){const s=initial();demo(s);const admin=s.users[0],viewer=s.users[1],editor=s.users[2],manager=s.users[3],t=s.tasks[0];return {s,admin,viewer,editor,manager,t,b:t.board,g:t.group};}
 function update(s:any,u:any,t:any,changes:any,extra={}){return mutate(s,u,{op:'task.update',board:t.board,id:t.id,version:t.version,changes,...extra});}
 const denied=(fn:()=>any)=>assert.throws(fn,/Access denied/);
@@ -557,3 +566,5 @@ test('users and pending invitees can belong to multiple groups and branch valida
 test('legacy single group is retained during migration and array membership remains authoritative',()=>{
  const {s,viewer}=setup();viewer.memberGroupId='existing-group';delete viewer.memberGroupIds;syncAdministrationBranches(s);assert.deepEqual(viewer.memberGroupIds,['existing-group']);viewer.memberGroupIds=[];syncAdministrationBranches(s);assert.deepEqual(viewer.memberGroupIds,[]);
 });
+
+test('user creation and editing require at least one Member Group',()=>{const {s,admin,viewer}=setup();assert.throws(()=>mutateDomain(s,admin,{op:'company.invite',name:'Missing Group',email:'nogroup@example.com',roles:[],memberGroupIds:[]}),/Member Group/);assert.throws(()=>mutateDomain(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:viewer.name,mobile:'',memberGroupIds:[]}),/Member Group/);});
