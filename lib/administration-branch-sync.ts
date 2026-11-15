@@ -26,5 +26,11 @@ export function syncAdministrationBranches(s:State){
   while(s.branches.some(b=>b.abbreviation?.toLowerCase()===abbreviation.toLowerCase()))abbreviation=item.abbreviation+n++;
   s.branches.push({id:'schedule-'+item.scheduleId,scheduleId:item.scheduleId,name:item.name,abbreviation,manager:'',crm:'',cres:[],version:1});changed=true;
  }
+ for(const b of s.branches){
+  const coaches=b.coaches??(b.people||[]).filter((id:string)=>s.users.some(u=>u.id===id&&(u.roles||[]).includes('Coach')));
+  const appointed=new Set([b.manager,b.manager2,b.crm,...(b.cres||[]),...coaches]);
+  const people=(b.people||[]).filter((id:string)=>!appointed.has(id));
+  if(b.coaches===undefined||JSON.stringify(people)!==JSON.stringify(b.people||[])){b.coaches=coaches;b.people=people;b.version=(b.version||0)+1;changed=true;}
+ }
  return changed;
 }

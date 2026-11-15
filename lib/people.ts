@@ -82,12 +82,13 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const crm=p.crm===undefined?(old?.crm||''):p.crm,cres=p.cres===undefined?(old?.cres||[]):p.cres;
   check(typeof crm==='string'&&(!crm||s.users.some(x=>x.id===crm&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select a CRM with the Customer Relationship role',400);
   check(Array.isArray(cres)&&cres.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('Customer Relationship'))),'Select members with the Customer Relationship role',400);
+  const coaches=p.coaches===undefined?(old?.coaches||[]):p.coaches;check(Array.isArray(coaches)&&coaches.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted&&(x.roles||[]).includes('Coach'))),'Select people with the Coach role',400);
   const people=p.people===undefined?(old?.people||[]):p.people;check(Array.isArray(people)&&people.every((id:any)=>typeof id==='string'&&s.users.some(x=>x.id===id&&x.active&&!x.deleted)),'Choose active or invited branch staff',400);
   const memberGroupId=p.memberGroupId===undefined?(old?.memberGroupId||''):p.memberGroupId;
   check(typeof memberGroupId==='string'&&(!memberGroupId||(s.memberGroups||[]).some(g=>g.id===memberGroupId)),'Choose a valid Member Group',400);
   check(u.admin||memberGroupId===(old?.memberGroupId||''),'Only System Administrators can move branches between groups',403);
-  if(!u.admin&&memberGroupId)check([p.manager,manager2,crm,...cres,...people].filter(Boolean).every(id=>s.users.some(x=>x.id===id&&x.memberGroupId===memberGroupId)),'Choose staff belonging to this Member Group',403);
-  const branch=old||{id:uid(),version:0};Object.assign(branch,{people:[...new Set(people)],memberGroupId,name,abbreviation,manager:p.manager,manager2,crm,cres:[...new Set(cres)],version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
+  if(!u.admin&&memberGroupId)check([p.manager,manager2,crm,...cres,...coaches,...people].filter(Boolean).every(id=>s.users.some(x=>x.id===id&&x.memberGroupId===memberGroupId)),'Choose staff belonging to this Member Group',403);
+  const branch=old||{id:uid(),version:0};Object.assign(branch,{coaches:[...new Set(coaches)],people:[...new Set(people.filter((id:string)=>![p.manager,manager2,crm,...cres,...coaches].includes(id)))],memberGroupId,name,abbreviation,manager:p.manager,manager2,crm,cres:[...new Set(cres)],version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
  }
  if(p.board===learningBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Learning is automatically available to all active staff',400);
  if(p.board===noticeBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Manage member access within a Notice Group',400);

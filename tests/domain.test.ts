@@ -534,3 +534,11 @@ test('group managers invite scoped staff, cannot elevate roles, and cannot edit 
  const other=mutate(s,admin,{op:'company.invite',name:'Other Coach',email:'othercoach@example.com',roles:['Coach'],memberGroupId:two.id});assert.throws(()=>mutate(s,viewer,{op:'invite.update',id:other.id}));
  const projected=view(s,viewer);assert(projected.invites.some((i:any)=>i.id===invite.id));assert(!projected.invites.some((i:any)=>i.id===other.id));assert(!projected.invites.some((i:any)=>i.token));assert(!projected.administrationUsers.some((u:any)=>u.id===editor.id));
 });
+
+test('branch coaches are validated and appointed staff are excluded from additional people',()=>{
+ const {s,admin,viewer,editor}=setup();syncAdministrationBranches(s);viewer.roles=['Coach'];editor.roles=['Business Manager'];const b=s.branches[0];
+ mutate(s,admin,{op:'branch.save',...b,manager:editor.id,coaches:[viewer.id],people:[viewer.id,editor.id,admin.id]});
+ assert.deepEqual(b.coaches,[viewer.id]);assert.deepEqual(b.people,[admin.id]);
+ assert.throws(()=>mutate(s,admin,{op:'branch.save',...b,coaches:[admin.id]}),/Coach role/);
+ delete b.coaches;b.people=[viewer.id,editor.id,admin.id];syncAdministrationBranches(s);assert.deepEqual(b.coaches,[viewer.id]);assert.deepEqual(b.people,[admin.id]);assert.equal(syncAdministrationBranches(s),false);
+});
