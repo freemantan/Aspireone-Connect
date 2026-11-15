@@ -568,3 +568,12 @@ test('legacy single group is retained during migration and array membership rema
 });
 
 test('user creation and editing require at least one Member Group',()=>{const {s,admin,viewer}=setup();assert.throws(()=>mutateDomain(s,admin,{op:'company.invite',name:'Missing Group',email:'nogroup@example.com',roles:[],memberGroupIds:[]}),/Member Group/);assert.throws(()=>mutateDomain(s,admin,{op:'person.edit',kind:'users',id:viewer.id,name:viewer.name,mobile:'',memberGroupIds:[]}),/Member Group/);});
+
+test('branch validation identifies an existing out-of-group CRM when eligible coaches are selected',()=>{
+ const {s,admin,viewer,editor}=setup();syncAdministrationBranches(s);s.memberGroups=[{id:'g1',name:'One',managers:[],version:1},{id:'g2',name:'Two',managers:[],version:1}];
+ viewer.roles=['Customer Relationship'];viewer.memberGroupIds=['g2'];editor.roles=['Coach'];editor.memberGroupIds=['g1'];
+ const b=s.branches[0];Object.assign(b,{memberGroupId:'g1',manager:'',manager2:'',crm:viewer.id,cres:[],coaches:[],people:[]});
+ assert.throws(()=>mutate(s,admin,{op:'branch.save',...b,coaches:[editor.id]}),e=>e instanceof Error&&e.message.includes(viewer.name+' (CRM)'));
+ assert.deepEqual(b.coaches,[]);assert.equal(b.crm,viewer.id);
+ viewer.memberGroupIds.push('g1');mutate(s,admin,{op:'branch.save',...b,coaches:[editor.id]});assert.deepEqual(b.coaches,[editor.id]);assert.equal(b.crm,viewer.id);
+});

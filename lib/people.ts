@@ -87,7 +87,11 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   const memberGroupId=p.memberGroupId===undefined?(old?.memberGroupId||''):p.memberGroupId;
   check(typeof memberGroupId==='string'&&(!memberGroupId||(s.memberGroups||[]).some(g=>g.id===memberGroupId)),'Choose a valid Member Group',400);
   check(u.admin||memberGroupId===(old?.memberGroupId||''),'Only System Administrators can move branches between groups',403);
-  if(memberGroupId)check([p.manager,manager2,crm,...cres,...coaches,...people].filter(Boolean).every(id=>s.users.some(x=>x.id===id&&inMemberGroup(x,memberGroupId))),'Choose staff belonging to this Member Group',403);
+  if(memberGroupId){
+   const assignments:[string,string[]][]=[['Branch Manager',[p.manager]],['Assistant Branch Manager',[manager2]],['CRM',[crm]],['CRE',cres],['Coaches',coaches],['Other People',people]];
+   const invalid=assignments.flatMap(([label,ids])=>ids.filter(id=>id&&!s.users.some(x=>x.id===id&&inMemberGroup(x,memberGroupId))).map(id=>(s.users.find(x=>x.id===id)?.name||id)+' ('+label+')'));
+   check(!invalid.length,'Choose staff belonging to this Member Group: '+invalid.join(', ')+'. Update their Member Groups in Users or remove the assignment.',403);
+  }
   const branch=old||{id:uid(),version:0};Object.assign(branch,{coaches:[...new Set(coaches)],people:[...new Set(people.filter((id:string)=>![p.manager,manager2,crm,...cres,...coaches].includes(id)))],memberGroupId,name,abbreviation,manager:p.manager,manager2,crm,cres:[...new Set(cres)],version:branch.version+1});if(!old)s.branches.push(branch);audit(s,u,'',branch.id,'Branch saved',null,name);return;
  }
  if(p.board===learningBoardId&&['member','board.roles','invite'].includes(p.op))check(false,'Learning is automatically available to all active staff',400);
