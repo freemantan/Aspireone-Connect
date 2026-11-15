@@ -3,7 +3,7 @@
  controls.className='edit-grid';let busy=false;const selected=new Set();
  const branch=field(controls,'Branch','group-branch','text',[]),day=field(controls,'Day','group-day','text',days.map((d,i)=>[String(i+1),d]));
  const coach=field(controls,'Coach','group-coach','text',[]);coach.required=false;coach.add(new Option('Unassigned (optional)',''));
- const reload=el('button','Reload');reload.type='button';controls.append(reload);reload.addEventListener('click',()=>run('reload'));
+ const reload=el('button','Reload');reload.type='button';reload.style.cssText='align-self:end;justify-self:end;min-height:40px;padding:8px 18px';controls.append(reload);reload.addEventListener('click',()=>run('reload'));
  function rows(){return (catalogue?.records||[]).filter(r=>r.branch_id===branch.value&&r.day===Number(day.value)&&r.status!=='discontinued').sort((a,b)=>a.academic_year-b.academic_year||(a.term||0)-(b.term||0)||a.start_minute-b.start_minute||a.subject.localeCompare(b.subject));}
  function render(){selected.clear();list.replaceChildren();const previous=coach.value;coach.replaceChildren(new Option('Unassigned (optional)',''));for(const name of [...new Set((catalogue.branchStaff?.[branch.value]||[]).filter(p=>(p.roles||[]).includes('Coach')).map(p=>p.name))].sort((a,b)=>a.localeCompare(b)))coach.add(new Option(name,name));coach.value=[...coach.options].some(o=>o.value===previous)?previous:'';
   const groups=new Map();for(const r of rows()){const id=r.class_group_id||r.id;if(!groups.has(id))groups.set(id,[]);groups.get(id).push(r);}
