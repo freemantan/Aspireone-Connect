@@ -15,6 +15,8 @@ async function scheduleRPC(name:string,args:Record<string,unknown>){
   if(code.includes('SCHEDULE_FORBIDDEN'))throw new AppError('You do not have permission to make this change.',403);
   if(code.includes('SCHEDULE_CONFLICT'))throw new AppError('Another member changed this record. Reload it before saving. Your form has been kept.',409);
   if(code.includes('SCHEDULE_NOT_FOUND'))throw new AppError('This class is no longer available.',404);
+  if(code.includes('SCHEDULE_INVALID_GROUP_COACH'))throw new AppError('This Class Group has a different Coach. Use its Coach, or change the group Coach in Manage Classes first.',400);
+  if(code.includes('SCHEDULE_INVALID_GROUP_CODE'))throw new AppError('Merge requires the same branch, year, term, weekday, start hour, subject and Room ID.',400);
   if(code.includes('SCHEDULE_INVALID')||['22007','22008','22P02'].includes(result?.code))throw new AppError('Check the branch, subject, levels, day, times and dates.',400);
   throw new AppError('Schedule editing is currently unavailable. Please try again later.',503);
  }
@@ -23,7 +25,7 @@ async function scheduleRPC(name:string,args:Record<string,unknown>){
 export async function schedulingAPI(request:Request,user:Row){
  const {state}=await load();
  const assigned=(branch:string,name='')=>!!user.admin||(user.roles||[]).includes('Technology')||state.branches.some(b=>(b.scheduleId===branch||b.id==='schedule-'+branch||name&&b.name.trim().toLowerCase()===name.trim().toLowerCase())&&(managesGroup(state,user,b.memberGroupId)||b.manager===user.id||b.manager2===user.id||b.crm===user.id||(b.cres||[]).includes(user.id)));
- if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});const permissions=Object.fromEntries(catalogue.branches.map((b:any)=>[b[0],assigned(b[0],b[1])?2:1]));const branchStaff=Object.fromEntries(catalogue.branches.filter((b:any)=>permissions[b[0]]>=2).map((b:any)=>{const branch=state.branches.find(x=>x.scheduleId===b[0]||x.id==='schedule-'+b[0]||x.name===b[1]);const ids=branch?[...(branch.people||[]),...(branch.coaches||[]),branch.manager,branch.manager2,branch.crm,...(branch.cres||[])]:[];return [b[0],state.users.filter(p=>p.active&&!p.deleted&&ids.includes(p.id)).map(p=>({id:p.id,name:p.name,abbreviation:p.abbreviation,roles:p.roles||[]}))];}));return {...catalogue,branchStaff,users:[],permissions,records:catalogue.records.filter((r:any)=>permissions[r.branch_id]>=2),members:[],globalMembers:[],canManage:false,canManageAll:false,isSystemAdmin:!!user.admin,assignmentBasedAccess:true};}
+ if(request.method==='GET'){const catalogue=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});const groupVersions:Record<string,Record<string,number>>={};for(const r of catalogue.records){if(r.status!=='discontinued'&&r.class_group_id)(groupVersions[r.class_group_id]??={})[r.id]=r.revision;}for(const r of catalogue.records)r.group_versions=groupVersions[r.class_group_id]||{};const permissions=Object.fromEntries(catalogue.branches.map((b:any)=>[b[0],assigned(b[0],b[1])?2:1]));const branchStaff=Object.fromEntries(catalogue.branches.filter((b:any)=>permissions[b[0]]>=2).map((b:any)=>{const branch=state.branches.find(x=>x.scheduleId===b[0]||x.id==='schedule-'+b[0]||x.name===b[1]);const ids=branch?[...(branch.people||[]),...(branch.coaches||[]),branch.manager,branch.manager2,branch.crm,...(branch.cres||[])]:[];return [b[0],state.users.filter(p=>p.active&&!p.deleted&&ids.includes(p.id)).map(p=>({id:p.id,name:p.name,abbreviation:p.abbreviation,roles:p.roles||[]}))];}));return {...catalogue,branchStaff,users:[],permissions,records:catalogue.records.filter((r:any)=>permissions[r.branch_id]>=2),members:[],globalMembers:[],canManage:false,canManageAll:false,isSystemAdmin:!!user.admin,assignmentBasedAccess:true};}
  check(request.method==='POST','Method not allowed',405);
  check(Number(request.headers.get('content-length')||0)<=40000,'Schedule request is too large.',413);
  const raw=await request.text();check(new TextEncoder().encode(raw).length<=40000,'Schedule request is too large.',413);
@@ -38,6 +40,14 @@ export async function schedulingAPI(request:Request,user:Row){
   if(p.op==='save')check(can(p.data?.branch_id),'You can manage only your assigned branches.',403);
  }
 
+ if(p.op==='group'){
+  check(['merge','split','ungroup'].includes(p.action)&&Array.isArray(p.ids)&&p.ids.length>0&&p.ids.length<=100&&p.ids.every((id:unknown)=>typeof id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(id)),'Select valid classes.',400);
+  const c=await scheduleRPC('ao_schedule_catalogue',{p_actor:user.id});
+  for(const id of p.ids){const r=c.records.find((r:any)=>r.id===id);check(r&&assigned(r.branch_id,c.branches.find((b:any)=>b[0]===r.branch_id)?.[1]),'You can manage only your assigned branches.',403);}
+  check(p.versions&&typeof p.versions==='object'&&!Array.isArray(p.versions),'Reload the classes before changing groups.',400);
+  check(p.coach==null||typeof p.coach==='string'&&p.coach.length<=200,'Enter a valid Coach.',400);
+  return scheduleRPC('ao_schedule_group_change',{p_actor:user.id,p_action:p.action,p_ids:p.ids,p_versions:p.versions,p_coach:p.coach??null});
+ }
  if(p.op==='role-access'){
   check(user.admin,'Only system administrators can assign all-branch access.',403);
   check(Array.isArray(p.changes)&&p.changes.length>0&&p.changes.length<=14,'Choose valid role access changes.',400);
