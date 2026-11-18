@@ -1,3 +1,4 @@
+import subjectAliases from './schedule-subject-aliases.json';
 import {managesGroup} from './member-groups';
 import {load} from './supabase-store';
 import {settings} from './supabase';
@@ -39,6 +40,8 @@ export async function schedulingAPI(request:Request,user:Row){
   if(p.id){const previous=catalogue.records.find((r:any)=>r.id===p.id);check(previous&&can(previous.branch_id),'You can manage only your assigned branches.',403);}
   if(p.op==='save')check(can(p.data?.branch_id),'You can manage only your assigned branches.',403);
  }
+
+ if(p.op==='save')check((subjectAliases as Record<string,string>)[p.data?.subject]!=='E-Math/A-Math','Choose E Math or A Math separately. The combined subject has been retired.',400);
 
  if(p.op==='group'){
   check(['merge','split','ungroup'].includes(p.action)&&Array.isArray(p.ids)&&p.ids.length>0&&p.ids.length<=100&&p.ids.every((id:unknown)=>typeof id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(id)),'Select valid classes.',400);

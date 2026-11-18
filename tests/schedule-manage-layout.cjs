@@ -46,6 +46,8 @@ d.getElementById('week-level').value='*';change('week-level');
 d.querySelector('#week-subjects input').click();
 d.querySelector('.week-editor-search').dispatchEvent(new w.Event('submit',{cancelable:true}));
 assert(d.getElementById('edit-week-results').textContent.includes('No classes found'));
+assert(![...d.querySelectorAll('#week-subjects label')].some(e=>e.textContent==='E-Math/A-Math'));assert(![...d.getElementById('detail-subject').options].some(o=>o.value==='E-Math/A-Math'));assert([...d.getElementById('detail-subject').options].some(o=>o.value==='E Math'));assert([...d.getElementById('detail-subject').options].some(o=>o.value==='A Math'));
+
 assert(d.querySelector('[data-operation="edit"]').disabled);
 assert(!d.querySelector('[data-operation="add"]').disabled);
 d.querySelector('[data-operation="add"]').click();

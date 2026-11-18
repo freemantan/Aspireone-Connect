@@ -152,6 +152,8 @@ class Importer:
      self.insert('ao_schedule_sheets',id=jid(sid,s.title),source_id=sid,name=s.title,role=role,cells=js(cells))
    self.counts['source_files']+=1
  def add_session(self,branch,rel,sheet,loc,level,sub,day,raw,coach,mode='unspecified',fmt='unspecified',context='',match=None,extra=None,levels_override=None):
+  if sub in {'A Math/E Math','Amath / Emath','E and/or A Math','E-Math/A-Math','Elementary & Additional Mathematics','Mathematics (Additional / Elementary)'}:
+   raise ValueError('Combined E/A Mathematics is retired. Import separate E Math and A Math schedules.')
   sid=self.source_ids[rel];start,end,flags=clock(match) if match else (None,None,['enquiry_only'])
   levels=levels_override if levels_override is not None else level_codes(level)
   flags+=extra or []

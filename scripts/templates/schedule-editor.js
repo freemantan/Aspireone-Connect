@@ -1,6 +1,6 @@
 // Editing uses the signed-in Connect session; branch permissions are checked again in the database.
 let catalogue=null,activeScheduleTab='find';
-const canonicalSubjects=[...new Set([...Object.values(subjectAliases),'Pure Chinese'])].filter(s=>s!=='Unspecified subject').sort();
+const canonicalSubjects=[...new Set([...Object.values(subjectAliases),'Pure Chinese'])].filter(s=>s!=='Unspecified subject'&&s!=='E-Math/A-Math').sort();
 function showScheduleTab(name){if($('create-class-editor')?.isSaving?.()||$('edit-class-editor')?.isSaving?.())return;if(activeScheduleTab==='create'&&name!=='create'&&catalogue)populateEditor('create');activeScheduleTab=name;for(const tab of ['find','edit','create','members','download','grouping']){$(tab+'-screen').hidden=tab!==name;if(tab===name)$(tab+'-tab')?.setAttribute('aria-current','page');else $(tab+'-tab')?.removeAttribute('aria-current')}}
 for(const name of ['find','edit','create','members','download','grouping'])$(name+'-tab')?.addEventListener('click',()=>showScheduleTab(name));
 async function scheduleRequest(payload){const response=await fetch('/api/scheduling',{method:payload?'POST':'GET',credentials:'same-origin',headers:payload?{'Content-Type':'application/json'}:{},...(payload?{body:JSON.stringify(payload)}:{})});const result=await response.json();if(!response.ok)throw Error(result.error||result.message||'Unable to load schedules. Please try again.');return result}
