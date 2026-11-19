@@ -577,3 +577,21 @@ test('branch validation identifies an existing out-of-group CRM when eligible co
  assert.deepEqual(b.coaches,[]);assert.equal(b.crm,viewer.id);
  viewer.memberGroupIds.push('g1');mutate(s,admin,{op:'branch.save',...b,coaches:[editor.id]});assert.deepEqual(b.coaches,[editor.id]);assert.equal(b.crm,viewer.id);
 });
+
+test('save without invitation creates an assignable pending user and supports later sending and acceptance',()=>{
+ const {s,admin,manager,b}=setup();
+ const i=mutate(s,admin,{op:'company.invite',name:'Saved Coach',email:'saved@example.test',roles:['Coach'],sendInvitation:false});
+ const person=s.users.find(u=>u.email===i.email)!;
+ assert(person);assert.equal(person.onboarding,true);assert.equal(person.active,true);assert.deepEqual(person.roles,['Coach']);
+ assert.equal(i.state,'pending');assert.equal(i.delivery,'not_sent');assert.equal(i.lastSentAt,undefined);assert.equal(i.emailId,undefined);assert.equal(i.sendCount,undefined);
+ mutate(s,manager,{op:'member',board:b,email:i.email,role:'Edit'});assert(s.members.some(m=>m.board===b&&m.user===person.id));
+ assert.throws(()=>mutate(s,admin,{op:'company.invite',name:'Duplicate',email:i.email,sendInvitation:false}),/already has an invitation/);
+ const token=i.token;mutate(s,admin,{op:'invite.update',id:i.id});assert.equal(i.delivery,'queued');assert.notEqual(i.token,token);
+ mutate(s,person,{op:'invite.accept',token:i.token});assert.equal(person.onboarding,false);assert.equal(i.state,'accepted');
+});
+test('save without invitation preserves permissions and mandatory groups',()=>{
+ const {s,admin,manager}=setup();
+ assert.throws(()=>mutate(s,manager,{op:'company.invite',name:'No permission',email:'no@example.test',sendInvitation:false}),/Access denied/);
+ assert.throws(()=>mutate(s,admin,{op:'company.invite',name:'No group',email:'no@example.test',memberGroupIds:[],sendInvitation:false}),/Member Groups/);
+ assert.throws(()=>mutate(s,admin,{op:'company.invite',name:'Bad option',email:'no@example.test',sendInvitation:'false'}),/Invalid invitation option/);
+});

@@ -170,6 +170,7 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
  }
  if(p.op==='user')check(!find(s,'users',p.id).deleted,'User has been deleted',400);
  if(p.op==='company.invite'){
+  check(p.sendInvitation===undefined||typeof p.sendInvitation==='boolean','Invalid invitation option',400);
   const memberGroupIds=p.memberGroupIds??(p.memberGroupId?[p.memberGroupId]:[]);check(Array.isArray(memberGroupIds)&&memberGroupIds.length>0&&memberGroupIds.every((id:any)=>typeof id==='string'&&(s.memberGroups||[]).some(g=>g.id===id)),'Choose valid Member Groups',400);
   check(u.admin||memberGroupIds.length>0&&memberGroupIds.every((id:string)=>managesGroup(s,u,id)),'Access denied. Choose Member Groups you manage',403);const email=emailOf(p.email),name=typeof p.name==='string'?p.name.trim():'';
   check(name&&name.length<=150,'Person Name is required (up to 150 characters)',400);
@@ -180,8 +181,8 @@ export function workspaceMutate(s:State,u:Row,p:any):any{
   check(!s.users.some(x=>x.email===email&&(!x.onboarding||!x.active||x.deleted)),'This person already has an account. Add them from Board Members.',400);
   if(!u.admin)check(!s.users.some(x=>x.email===email&&(!personGroupIds(x).length||personGroupIds(x).some(id=>!managesGroup(s,u,id)))),'This email is already registered outside your Member Group',403);
   check(!pending(s,email),'This person already has an invitation. Use Resend in Administration.',400);
-  check(p.abbreviation===undefined||(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12),'Abbr Name must be up to 12 characters',400);const i={id:uid(),email,name,mobile,roles:p.roles||[],abbreviation:p.abbreviation?.trim()||'',token:uid()+uid(),expires:new Date(Date.now()+7*86400000).toISOString(),state:'pending',delivery:'queued',inviter:u.id,at:now()};
-  Object.assign(i,{memberGroupIds:[...new Set(memberGroupIds)],memberGroupId:memberGroupIds[0]||'',systemAdministrator:(p.roles||[]).includes('System Administrator')});s.invites.push(i);audit(s,u,'',i.id,'Company invitation created',null,email);return i;
+  check(p.abbreviation===undefined||(typeof p.abbreviation==='string'&&p.abbreviation.trim().length<=12),'Abbr Name must be up to 12 characters',400);const i={id:uid(),email,name,mobile,roles:p.roles||[],abbreviation:p.abbreviation?.trim()||'',token:uid()+uid(),expires:new Date(Date.now()+7*86400000).toISOString(),state:'pending',delivery:p.sendInvitation===false?'not_sent':'queued',inviter:u.id,at:now()};
+  Object.assign(i,{memberGroupIds:[...new Set(memberGroupIds)],memberGroupId:memberGroupIds[0]||'',systemAdministrator:(p.roles||[]).includes('System Administrator')});s.invites.push(i);if(p.sendInvitation===false)provisionInvitedPeople(s);audit(s,u,'',i.id,p.sendInvitation===false?'User saved without invitation email':'Company invitation created',null,email);return i;
  }
  if(p.op==='invite.update'){
   const i=find(s,'invites',p.id);check(u.admin||scopedPerson(s,u,i),'You can resend only invitations in your Member Group',403);check(i.state!=='accepted','Invitation already accepted',400);
